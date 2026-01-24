@@ -1,0 +1,537 @@
+{
+  "Promoções": [
+    {
+      "nome": "1 Simples + 1 Duplo",
+      "descricao": "Acompanha um Smash Simples e um Smash Duplo deliciosos.",
+      "precoBase": [25],
+      "opcoes": ["Promo"],
+      "img": "./img/simplesduplo.png",
+      "combo": true,
+      "burgers": ["Smash Simples", "Smash Duplo"],
+      "simplesIngredients": [
+        "Cebola caramelizada",
+        "Molho artesanal",
+        "Cheddar fatiado"
+      ],
+      "duploIngredients": [
+        "Alface",
+        "Tomate",
+        "Cebola caramelizada",
+        "Molho",
+        "Cheddar fatiado"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "3 Smash Simples",
+      "descricao": "3 unidades de smash simples, 100g cada! Carne prensada.",
+      "precoBase": [30],
+      "opcoes": ["Promo"],
+      "img": "./img/3simples.png",
+      "combo": true,
+      "burgers": ["1º Smash Simples", "2º Smash Simples", "3º Smash Simples"],
+      "simplesIngredients": [
+        "Cebola caramelizada",
+        "Cheddar fatiado",
+        "Molho artesanal"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "4 Smash Simples",
+      "descricao": "4 unidades de smash simples, 100g cada! Carne prensada.",
+      "precoBase": [40],
+      "opcoes": ["Promo"],
+      "img": "./img/3simples.png",
+      "combo": true,
+      "burgers": [
+        "1º Smash Simples",
+        "2º Smash Simples",
+        "3º Smash Simples",
+        "4º Smash Simples"
+      ],
+      "simplesIngredients": [
+        "Cebola caramelizada",
+        "Cheddar fatiado",
+        "Molho artesanal"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "1 Simples + 2 Duplos",
+      "descricao": "O combo acompanha um Smash Simples e dois Smash Duplos",
+      "precoBase": [40],
+      "opcoes": ["Promo"],
+      "img": "./img/simples2duplos.png",
+      "combo": true,
+      "burgers": ["Smash Simples", "1º Smash Duplo", "2º Smash Duplo"],
+      "simplesIngredients": [
+        "Cebola caramelizada",
+        "Molho artesanal",
+        "Cheddar fatiado"
+      ],
+      "duploIngredients": [
+        "Alface",
+        "Tomate",
+        "Cebola caramelizada",
+        "Molho",
+        "Cheddar fatiado"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "3 Duplos",
+      "descricao": "Três deliciosos Smash Duplos, aproveita e pede o teu!",
+      "precoBase": [45],
+      "opcoes": ["Promo"],
+      "img": "./img/3duplos.png",
+      "combo": true,
+      "burgers": ["1º Smash Duplo", "2º Smash Duplo", "3º Smash Duplo"],
+      "duploIngredients": [
+        "Alface",
+        "Tomate",
+        "Cebola caramelizada",
+        "Molho",
+        "Cheddar fatiado"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "Combo Plus!",
+      "descricao": "Compõe 4 smash duplos, junto a Batata G com cheddar e bacon!.",
+      "precoBase": [75],
+      "opcoes": ["Promo"],
+      "img": "./img/comboplus.png",
+      "combo": true,
+      "burgers": [
+        "1º Smash Duplo",
+        "2º Smash Duplo",
+        "3º Smash Duplo",
+        "4º Smash Duplo"
+      ],
+      "duploIngredients": [
+        "Alface",
+        "Tomate",
+        "Cebola caramelizada",
+        "Molho",
+        "Cheddar fatiado"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    }
+  ],
+  "Artesanais": [
+    {
+      "nome": "Ribbs",
+      "opcoes": ["Simples", "Duplo", "Triplo Bacon"],
+      "descricao": "Carne de costela bovina, suculência em 100g cada carne.",
+      "precoBase": [18, 25, 30],
+      "ingredientesPadrao": [
+        "Alface",
+        "Tomate",
+        "Cebola Caramelizada",
+        "Molho artesanal",
+        "Cheddar fatiado"
+      ],
+      "adicionais": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne", "preco": 5 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Calabresa", "preco": 3 }
+      ],
+      "img": "./img/rtriplo.jpg"
+    },
+    {
+      "nome": "Smash",
+      "opcoes": ["Simples", "Duplo", "Triplo Bacon"],
+      "descricao": "Carne prensada na chapa, 100g cada suculência.",
+      "precoBase": [12, 18, 25],
+      "ingredientesPorOpcao": {
+        "Simples": [
+          "Cebola caramelizada",
+          "Cheddar fatiado",
+          "Molho artesanal"
+        ],
+        "Duplo": [
+          "Cheddar Fatiado",
+          "Alface",
+          "Tomate",
+          "Cebola Caramelizada",
+          "Molho artesanal"
+        ],
+        "Triplo Bacon": ["Cheddar", "Alface", "Bacon", "Molho artesanal"]
+      },
+      "adicionais": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne", "preco": 5 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Calabresa", "preco": 3 }
+      ],
+      "img": "./img/3sms.jpg"
+    },
+    {
+      "nome": "Cremoso",
+      "opcoes": ["Simples", "Duplo"],
+      "descricao": "Delicioso artesanal com cream cheese incluso.",
+      "precoBase": [16, 25],
+      "ingredientesPadrao": [
+        "Alface",
+        "Tomate",
+        "Molho artesanal",
+        "Cheddar fatiado",
+        "Cream cheese",
+        "Cebola caramelizada"
+      ],
+      "adicionais": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne", "preco": 5 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Calabresa", "preco": 3 }
+      ],
+      "img": "./img/cremoso.png"
+    },
+    {
+      "nome": "Calabreso",
+      "opcoes": ["Simples", "Duplo"],
+      "descricao": "Para os amantes de calabresa!",
+      "precoBase": [16, 20],
+      "ingredientesPadrao": [
+        "Alface",
+        "Tomate",
+        "Cebola caramelizada",
+        "Cheddar Fatiado",
+        "Molho artesanal",
+        "Calabresa"
+      ],
+      "adicionais": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne", "preco": 5 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Ovo", "preco": 2 }
+      ],
+      "img": "./img/calabreso2.png"
+    },
+    {
+      "nome": "Eggy",
+      "opcoes": ["Simples", "Duplo"],
+      "descricao": "O clássico com ovo frito!",
+      "precoBase": [15, 20],
+      "ingredientesPadrao": [
+        "Alface",
+        "Tomate",
+        "Molho artesanal",
+        "Ovo",
+        "Cebola caramelizada"
+      ],
+      "adicionais": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne", "preco": 5 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Calabresa", "preco": 3 }
+      ],
+      "img": "./img/eggy.jpg"
+    }
+  ],
+  "Costela Bovina": [
+    {
+      "nome": "Combo Smash 1",
+      "opcoes": ["Individual"],
+      "img": "./img/combo1.png",
+      "descricao": "1 Smash Duplo + 1 Batata P + Antártica Lata",
+      "precoBase": [29],
+      "combo": true,
+      "burgers": ["Smash Duplo"],
+      "duploIngredients": [
+        "Alface",
+        "Tomate",
+        "Cebola Caramelizada",
+        "Molho artesanal",
+        "Cheddar fatiado"
+      ],
+      "upgrades": {
+        "batata": [
+          { "nome": "Batata P (Inclusa)", "adicional": 0 },
+          { "nome": "Mudar para Batata M", "adicional": 3 },
+          { "nome": "Mudar para Batata G (Apenas batata)", "adicional": 5 }
+        ],
+        "bebida": [
+          { "nome": "Antártica Lata (Inclusa)", "adicional": 0 },
+          { "nome": "Trocar por Coca Lata", "adicional": 1 },
+          { "nome": "Trocar por Coca Lata Zero", "adicional": 1 },
+          { "nome": "Trocar por Antártica 1L", "adicional": 2 }
+        ]
+      },
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "Combo Smash 2",
+      "opcoes": ["Casal"],
+      "descricao": "2 Smash Duplos + 1 Batata M + Antártica Lata",
+      "precoBase": [52],
+      "combo": true,
+      "burgers": ["1º Smash Duplo", "2º Smash Duplo"],
+      "duploIngredients": [
+        "Alface",
+        "Tomate",
+        "Cebola Caramelizada",
+        "Molho artesanal",
+        "Cheddar fatiado"
+      ],
+      "img": "./img/combo2.png",
+      "upgrades": {
+        "batata": [
+          { "nome": "Batata M (Inclusa)", "adicional": 0 },
+          { "nome": "Trocar por Batata P", "adicional": -2 },
+          { "nome": "Mudar para Batata G", "adicional": 2 }
+        ],
+        "bebida": [
+          { "nome": "Antártica Lata (Inclusa)", "adicional": 0 },
+          { "nome": "Trocar por Coca Lata", "adicional": 1 },
+          { "nome": "Trocar por Coca Lata Zero", "adicional": 1 },
+          { "nome": "Trocar por Antártica 1L", "adicional": 2 }
+        ]
+      },
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "Combo Smash 3",
+      "opcoes": ["Família"],
+      "descricao": "2 Smash Triplos + 1 Batata G + Antártica Litro",
+      "precoBase": [70],
+      "combo": true,
+      "burgers": ["1º Smash Triplo", "2º Smash Triplo"],
+      "duploIngredients": [
+        "Alface",
+        "Tomate",
+        "Cebola Caramelizada",
+        "Molho artesanal",
+        "Cheddar fatiado"
+      ],
+      "img": "./img/combo3.png",
+      "upgrades": {
+        "batata": [
+          { "nome": "Batata G (Inclusa)", "adicional": 0 },
+          { "nome": "Trocar por Batata M", "adicional": -3 },
+          { "nome": "Trocar por Batata P", "adicional": -5 }
+        ],
+        "bebida": [
+          { "nome": "Antártica 1L (Inclusa)", "adicional": 0 },
+          { "nome": "Trocar por Coca 1L", "adicional": 2 }
+        ]
+      },
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    }
+  ],
+  "Batata Frita": [
+    {
+      "nome": "Batata",
+      "opcoes": ["Pequena", "Média", "Grande"],
+      "precoBase": [10, 13, 16],
+      "img": "./img/batatap.png",
+      "adicionais": [
+        { "nome": "Bacon", "preco": 2 },
+        { "nome": "Cheddar", "preco": 2 }
+      ]
+    }
+  ],
+  "Bebidas": [
+    {
+      "nome": "Refrigerantes",
+      "opcoes": [
+        "Coca Pitchulinha",
+        "Coca Lata",
+        "Coca Lata Zero",
+        "Coca Litro",
+        "Antártica Lata",
+        "Antártica Litro"
+      ],
+      "precoBase": [4, 6, 6, 9, 5, 8],
+      "img": "./img/refri_geral.png"
+    },
+    {
+      "nome": "Milk Shake 300ml",
+      "img": "./img/milks.png",
+      "opcoes": [
+        "Morango",
+        "Ninho Trufado",
+        "Limão",
+        "Ninho Oreo",
+        "Ovomaltine"
+      ],
+      "precoBase": [10, 10, 10, 12, 12]
+    },
+    {
+      "nome": "Milk Shake 400ml",
+      "img": "./img/milks.png",
+      "opcoes": [
+        "Morango",
+        "Ninho Trufado",
+        "Limão",
+        "Ninho Oreo",
+        "Ovomaltine"
+      ],
+      "precoBase": [12, 12, 12, 14, 14]
+    },
+    {
+      "nome": "Sucos",
+      "opcoes": ["Cajá 300ml", "Maracujá 300ml"],
+      "precoBase": [5, 5],
+      "descricao": "Suco de polpa da fruta.",
+      "img": "./img/suco_polpa.png"
+    }
+  ],
+
+  "Clones": [
+    {
+      "nome": "Clone (2 Cremosos)",
+      "descricao": "Dois burgers cremosos com cream cheese.",
+      "img": "./img/ccclone.png",
+      "precoBase": [30],
+      "opcoes": ["Promo"],
+      "combo": true,
+      "burgers": ["1º Cremoso", "2º Cremoso"],
+      "PromoIngredients": [
+        "Pão brioche",
+        "Carne smash",
+        "Cheddar",
+        "Cream cheese",
+        "Alface",
+        "Molho da casa"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "Clone (2 Smash Duplos)",
+      "descricao": "Campeão de vendas! Dois Smash Duplos.",
+      "img": "./img/duploclone.png",
+      "precoBase": [30],
+      "opcoes": ["Promo"],
+      "combo": true,
+      "burgers": ["1º Smash Duplo", "2º Smash Duplo"],
+      "duploIngredients": [
+        "Pão brioche",
+        "2 carnes smash",
+        "Cheddar fatiado",
+        "Alface",
+        "Tomate",
+        "Molho"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "Clone (2 Calabresos)",
+      "descricao": "Famoso X-Calabresa artesanal.",
+      "img": "./img/calabresoclone.png",
+      "precoBase": [28],
+      "opcoes": ["Promo"],
+      "combo": true,
+      "burgers": ["1º Calabreso", "2º Calabreso"],
+      "duploIngredients": [
+        "Pão brioche",
+        "Calabresa artesanal",
+        "Queijo",
+        "Cebola",
+        "Molho"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    },
+    {
+      "nome": "Clone (2 Calabresos Duplos)",
+      "descricao": "O dobro de sabor!",
+      "img": "./img/calabresoclone.png",
+      "precoBase": [36],
+      "opcoes": ["Promo"],
+      "combo": true,
+      "burgers": ["1º Calabreso Duplo", "2º Calabreso Duplo"],
+      "duploIngredients": [
+        "Pão brioche",
+        "Calabresa artesanal dupla",
+        "Queijo",
+        "Cebola",
+        "Molho"
+      ],
+      "paidExtras": [
+        { "nome": "Bacon", "preco": 4 },
+        { "nome": "Carne Smash", "preco": 5 },
+        { "nome": "Ovo", "preco": 2 },
+        { "nome": "Cream Cheese", "preco": 3 },
+        { "nome": "Calabresa", "preco": 3 }
+      ]
+    }
+  ]
+}

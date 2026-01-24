@@ -1,0 +1,817 @@
+:root {
+  --amarelo: #ffd500;
+  --fundo: #121212;
+  --preto-card: #1e1e1e;
+  --texto: #f0f0f0;
+  --verde-zap: #25d366;
+  --vermelho: #ff4444;
+
+  --border-radius-small: 8px;
+  --border-radius-medium: 12px;
+  --border-radius-large: 15px;
+  --border-radius-pill: 20px;
+
+  --padding-small: 10px;
+  --padding-medium: 15px;
+  --padding-large: 20px;
+
+  --font-size-small: 0.8em;
+  --font-size-medium: 0.9em;
+  --font-size-large: 1.1em;
+  --font-weight-bold: bold;
+
+  --shadow-card: 0 4px 10px rgba(0, 0, 0, 0.4);
+  --shadow-footer: 0 -10px 30px rgba(0, 0, 0, 0.5);
+
+  --border-dark: 1px solid #444;
+  --border-light: 1px solid #333;
+  --border-dashed: 1px dashed #444;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background-color: var(--fundo);
+  background-image: url("./img/fundo.png");
+  background-size: cover;
+  background-attachment: fixed;
+  color: var(--texto);
+}
+
+header {
+  background: rgba(0, 0, 0, 0.9);
+  padding: var(--padding-medium);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 2px solid var(--amarelo);
+  text-align: center;
+}
+
+.logo-text {
+  font-size: 1.4em;
+  font-weight: 900;
+  color: var(--amarelo);
+}
+
+/* Seções do Formulário */
+.form-section {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: var(--border-dark);
+}
+
+.form-section h4 {
+  margin-top: 5px;
+  margin-bottom: 10px; /* Reduzido de var(--padding-medium) */
+  font-size: var(--font-size-large);
+}
+.input-group {
+  margin-bottom: 10px; /* Espaço entre um campo e outro */
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 2px; /* Reduzido de 5px para 2px */
+  font-size: var(--font-size-medium);
+  color: #ddd;
+}
+
+.required {
+  color: var(--vermelho);
+  font-weight: bold;
+}
+
+/* Animações para Áreas Condicionais */
+.hidden {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.hidden.show {
+  display: block;
+  opacity: 1;
+}
+
+/* Resumo Final */
+.resumo-final {
+  background: rgba(34, 34, 34, 0.8); /* Mistura do sólido com transparência */
+  padding: var(--padding-large);
+  border-radius: var(--border-radius-medium);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+  margin: var(--padding-small) 0;
+  border: var(--border-dashed);
+}
+
+.resumo-final p {
+  font-size: var(--font-size-medium);
+  margin: 8px 0;
+}
+
+.total-big span {
+  color: var(--amarelo);
+  font-size: 1.4em;
+}
+
+/* Botão de Envio com Loader */
+.btn-whatsapp {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-whatsapp.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Erros de Validação */
+.input-error {
+  border-color: var(--vermelho) !important;
+}
+
+.error-message {
+  color: var(--vermelho);
+  font-size: var(--font-size-small);
+  margin-top: 5px;
+}
+
+/* --- Common Button Styles --- */
+.btn,
+.sessao-topo button,
+.btn-add,
+.btn-personalizar,
+.btn-primary,
+.btn-whatsapp,
+.upsell-card button {
+  border: none;
+  padding: var(--padding-small) var(--padding-medium);
+  border-radius: var(--border-radius-small);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.btn:active,
+.btn-whatsapp:active {
+  transform: scale(0.98);
+}
+
+.btn-cancel {
+  background: #555;
+  color: #fff;
+  border: none;
+}
+
+.btn-primary {
+  width: 100%;
+  background: white;
+  color: #000;
+  margin-bottom: 20px;
+}
+
+.btn-whatsapp {
+  background: var(--verde-zap);
+  color: #000;
+  font-size: var(--font-size-large);
+  transition: background 0.3s;
+}
+
+/* --- Categorias --- */
+.sessao-topo {
+  display: flex;
+  gap: var(--padding-small);
+  padding: var(--padding-medium);
+  overflow-x: auto;
+  background: rgba(0, 0, 0, 0.5);
+  scrollbar-width: none;
+}
+
+.sessao-topo::-webkit-scrollbar {
+  display: none;
+}
+
+.sessao-topo button {
+  background: #333;
+  color: #fff;
+  border: var(--border-dark);
+  white-space: nowrap;
+}
+
+.sessao-topo button.active {
+  background: var(--amarelo);
+  color: #000;
+}
+
+/* --- Cards do Cardápio --- */
+.cardapio {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--padding-medium);
+  padding: var(--padding-medium);
+}
+
+.card {
+  background: var(--preto-card);
+  border-radius: var(--border-radius-medium);
+  padding: var(--padding-small);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+}
+
+.card img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+}
+
+.card h3 {
+  font-size: var(--font-size-large);
+  color: var(--amarelo);
+  margin: var(--padding-small) 0 5px 0;
+}
+
+.descricao {
+  font-size: 0.85em;
+  color: #bbb;
+  margin-bottom: var(--padding-medium);
+  line-height: 1.3;
+}
+
+.options-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.btn-add,
+.btn-personalizar {
+  background: var(--amarelo);
+  color: #000;
+}
+
+/* --- Carrinho Modernizado (Estilo Inferior) --- */
+#footerCart {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a1a;
+  border-top: 3px solid var(--amarelo);
+  z-index: 1000;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-footer);
+  transform: translateY(calc(100% - 60px));
+}
+
+#footerCart.open {
+  transform: translateY(0);
+}
+
+.cart-header {
+  padding: var(--padding-medium) var(--padding-large);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  min-height: 60px;
+  box-sizing: border-box;
+}
+
+.cart-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#cartCount {
+  background: var(--amarelo);
+  color: #000;
+  font-weight: var(--font-weight-bold);
+  padding: 2px 8px;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.85em;
+}
+
+#cartTotalDisplay {
+  font-size: 1.2em;
+  font-weight: 800;
+  color: var(--amarelo);
+}
+
+#cartItemsContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+#cartItems {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0 var(--padding-large);
+  max-height: 50vh;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--padding-medium) 0;
+  border-bottom: var(--border-light);
+}
+
+.cart-item strong {
+  display: block;
+  font-size: 1em;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.cart-item small {
+  color: #aaa;
+  font-size: var(--font-size-small);
+  line-height: 1.4;
+}
+
+.cart-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #2a2a2a;
+  padding: 5px var(--padding-small);
+  border-radius: var(--border-radius-small);
+}
+
+.cart-controls button {
+  background: none;
+  border: none;
+  color: var(--amarelo);
+  font-size: 1.2em;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.cart-controls span {
+  font-weight: var(--font-weight-bold);
+  min-width: 20px;
+  text-align: center;
+}
+
+.cart-actions {
+  padding: var(--padding-large);
+  background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  gap: var(--padding-small);
+}
+
+#btnFinalizar {
+  background: var(--vermelho);
+  color: #e1e1e1;
+  width: 100%;
+  border-radius: var(--border-radius-medium);
+  font-size: var(--font-size-large);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+#btnLimpar {
+  background: transparent;
+  color: white;
+  border: 1px solid var(--vermelho);
+  padding: 8px;
+  border-radius: var(--border-radius-small);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+}
+
+/* --- Modais e Popups --- */
+.popup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: #2c2c2c;
+  width: 95%;
+  max-width: 390px;
+  padding: var(--padding-large);
+  border-radius: var(--border-radius-large);
+  z-index: 1100;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  transition: all 0.3s ease-out;
+  border: 1px solid rgba(255, 213, 0, 0.2);
+}
+
+.popup.show {
+  display: block;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 950;
+  transition: all 0.3s ease;
+}
+
+.backdrop.show {
+  display: block;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* --- Estilização dos Modais de Checkout (Novo) --- */
+#modalModoEntrega h3,
+#modalDados h3 {
+  color: var(--amarelo);
+  text-align: center;
+  margin-bottom: var(--padding-large);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+#modalDados form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--padding-medium);
+}
+
+/* Estilização Dark para os Inputs do Modal de Dados */
+#modalDados input,
+#modalDados select {
+  width: 100%;
+  padding: 12px;
+  margin-top: 5px;
+  background-color: #2a2a2a; /* Fundo cinza escuro */
+  border: 1px solid #444; /* Borda suave */
+  border-radius: var(--border-radius-small);
+  color: var(--texto); /* Cor do texto definida no seu :root */
+  font-size: 1rem;
+  box-sizing: border-box; /* Garante que o padding não quebre a largura */
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+/* Efeito ao clicar/focar no campo */
+#modalDados input:focus,
+#modalDados select:focus {
+  outline: none;
+  border-color: var(--amarelo); /* Destaque com a cor amarela do seu tema */
+  box-shadow: 0 0 5px rgba(255, 213, 0, 0.3);
+}
+
+/* Estilização do dropdown (seta) para o select no modo dark */
+#modalDados select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 1em;
+  padding-right: 40px;
+}
+
+/* Cor do texto placeholder */
+#modalDados input::placeholder {
+  color: #888;
+}
+
+/* Ajuste específico para a seção de troco e áreas escondidas */
+.troco-area input {
+  margin-top: 10px;
+}
+
+.resumo-final {
+  background: rgba(0, 0, 0, 0.3);
+  padding: var(--padding-medium);
+  border-radius: var(--border-radius-small);
+  margin: var(--padding-small) 0;
+  border: var(--border-dashed);
+}
+
+.resumo-final p {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+  font-size: var(--font-size-medium);
+}
+
+.total-big {
+  font-size: 1.2em !important;
+  font-weight: var(--font-weight-bold);
+  color: var(--amarelo);
+  border-top: var(--border-dark);
+  padding-top: var(--padding-small);
+  margin-top: var(--padding-small) !important;
+}
+
+.btn-close-modal {
+  position: absolute;
+  top: var(--padding-small);
+  right: var(--padding-medium);
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* --- Estilos Internos do Modal (Personalização) --- */
+#popupQuestion h4 {
+  color: var(--amarelo);
+  border-bottom: var(--border-dark);
+  margin: var(--padding-large) 0 var(--padding-small);
+  font-size: var(--font-size-medium);
+}
+
+#popupQuestion label {
+  display: flex;
+  align-items: center;
+  background: #3d3d3d;
+  padding: 14px;
+  margin-bottom: 8px;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  position: relative;
+  padding-left: 50px;
+}
+
+#popupQuestion input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+#popupQuestion input[type="checkbox"] + span::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  background: #2c2c2c;
+  border: 2px solid #555;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+#popupQuestion input[type="checkbox"]:checked + span::before {
+  background: var(--amarelo);
+  border-color: var(--amarelo);
+}
+
+#popupQuestion input[type="checkbox"]:checked + span::after {
+  content: "\2713";
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-55%);
+  color: #000;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+#popupQuestion input[type="checkbox"] + span {
+  color: #fff;
+  font-size: 1rem;
+}
+
+#popupQuestion select {
+  background: #1e1e1e;
+  border: var(--border-dark);
+  padding: 12px;
+  border-radius: var(--border-radius-small);
+  color: #fff;
+  font-size: 1rem;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.3s;
+}
+
+#popupQuestion select:focus {
+  border-color: var(--amarelo);
+}
+
+#popupQuestion textarea {
+  width: 100%;
+  height: 80px;
+  background: #3d3d3d;
+  color: #fff;
+  border: none;
+  border-radius: var(--border-radius-small);
+  padding: var(--padding-small);
+  outline: none;
+  transition: border-color 0.3s;
+  font-size: 1rem;
+}
+
+#popupQuestion textarea:focus {
+  border: 1px solid var(--amarelo);
+}
+
+/* --- Upsell --- */
+#upsellContainer {
+  padding: 14px 10px; /* Mais espaçamento para respirar */
+  background: rgba(255, 213, 0, 0.05); /* Fundo levemente amarealado */
+  border-top: 1px dashed var(--amarelo);
+  border-bottom: 1px dashed var(--amarelo);
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.upsell-header {
+  font-size: 0.9em;
+  color: var(--amarelo);
+  font-weight: 800;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.upsell-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 8px 5px 16px 5px; /* Padding extra embaixo para a sombra */
+  scrollbar-width: none;
+  justify-content: flex-start; /* Alinha à esquerda no scroll */
+}
+
+/* Ocultar scrollbar */
+.upsell-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animação de Pulso Dourado */
+@keyframes goldPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 213, 0, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 213, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 213, 0, 0);
+  }
+}
+
+.upsell-card {
+  min-width: 90px; /* Um pouco mais largo */
+  background: #222;
+  border-radius: var(--border-radius-medium);
+  padding: 9px;
+  text-align: center;
+  border: 1px solid var(--amarelo); /* Borda Dourada Fixa */
+  position: relative; /* Necessário para a etiqueta absoluta */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+
+  /* A mágica acontece aqui */
+  animation: goldPulse 2s infinite;
+}
+
+/* Etiqueta de Sugestão Flutuante */
+.upsell-card::before {
+  content: "SUGESTÃO";
+  position: absolute;
+  top: -10px;
+  background: var(--amarelo);
+  color: #000;
+  font-size: 0.6em;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.upsell-card img {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 6px;
+  border: 2px solid #333;
+}
+
+.upsell-card h4 {
+  font-size: 0.8em;
+  color: #fff;
+  margin: 0 0 5px 0;
+  font-weight: normal;
+  line-height: 1.2;
+}
+
+.upsell-card .price {
+  color: var(--amarelo);
+  font-weight: bold;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+
+.upsell-card button {
+  background: var(--verde-zap);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 0;
+  width: 100%;
+  font-size: 0.75em;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.upsell-card button:active {
+  transform: scale(0.95);
+}
+/* Espaçamento e Responsividade */
+main,
+.cardapio {
+  padding-bottom: 80px !important;
+}
+
+@media (min-width: 768px) {
+  #footerCart.open {
+    bottom: var(--padding-large);
+    right: var(--padding-large);
+    left: auto;
+    width: 350px;
+  }
+}
+
+.cart-item-content {
+  flex: 1;
+}
+
+.cart-item-price {
+  color: var(--amarelo);
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+.customization-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.customization-buttons button {
+  width: 48%;
+}
+
+.customization-buttons button:only-child {
+  width: 100%;
+}
+
+.btn-previous {
+  background: #ccc;
+  color: #000;
+}
+
+.taxa-pending {
+  color: #ff4444;
+  font-weight: bold;
+}

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ribbs Hamburgueria - Links</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --primary-yellow: #ffef00;
+        --dark-bg: #1a1a1a;
+        --text-white: #ffffff;
+        --whatsapp-green: #25d366;
+        --ifood-red: #ea1d2c;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Arial Black", Gadget, sans-serif;
+      }
+
+      body {
+        background-image: url("img/fund.png"); /* Imagem de fundo adicionada */
+        background-size: cover; /* Ajusta a imagem para cobrir toda a tela */
+        background-position: center; /* Centraliza a imagem */
+        background-repeat: no-repeat; /* Evita repetição da imagem */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        padding: 30px 20px;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .logo {
+        max-width: 220px;
+        width: 100%; /* Mais responsivo */
+        filter: drop-shadow(0px 8px 12px rgba(0, 0, 0, 0.3));
+      }
+
+      main {
+        width: 100%;
+        max-width: 450px;
+      }
+
+      .section {
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        color: var(--dark-bg);
+        text-align: center;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        font-size: 1.2rem;
+      }
+
+      .links-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .link-card {
+        background-color: var(--dark-bg);
+        color: var(--text-white);
+        text-decoration: none;
+        padding: 20px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1rem;
+        transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0px 6px 0px #000;
+        position: relative;
+        text-transform: uppercase;
+      }
+
+      .link-card:hover,
+      .link-card:focus {
+        outline: 3px solid #000; /* Destaque visível para foco por teclado */
+      }
+
+      .link-card:active {
+        transform: translateY(4px);
+        box-shadow: 0px 2px 0px #000;
+      }
+
+      .btn-whatsapp {
+        background-color: var(--whatsapp-green);
+      }
+
+      .btn-ifood {
+        background-color: var(--ifood-red);
+      }
+
+      /* Botão 99 Food: Amarelo com borda preta */
+      .btn-99food {
+        background-color: var(--primary-yellow);
+        color: #000;
+        border: 2px solid #000;
+      }
+
+      .link-card i {
+        position: absolute;
+        left: 20px;
+        font-size: 1.5rem;
+      }
+
+      .footer {
+        margin-top: auto;
+        padding-top: 40px;
+        color: var(--dark-bg);
+        font-weight: 900;
+        font-size: 0.8rem;
+        text-align: center;
+      }
+
+      /* Media Queries para Mobile */
+      @media (max-width: 480px) {
+        body {
+          padding: 20px 10px; /* Reduz padding em telas menores */
+        }
+
+        .logo {
+          max-width: 180px; /* Ajusta logo para mobile */
+        }
+
+        .link-card {
+          padding: 15px; /* Reduz padding dos botões */
+          font-size: 0.9rem; /* Fonte ligeiramente menor */
+        }
+
+        .link-card i {
+          left: 15px; /* Ajusta posição do ícone */
+          font-size: 1.2rem; /* Ícone menor */
+        }
+
+        h2 {
+          font-size: 1rem; /* Títulos menores */
+        }
+
+        .footer {
+          font-size: 0.7rem; /* Footer ajustado */
+          padding-top: 30px;
+        }
+      }
+
+      /* Melhoria de acessibilidade: Evitar animações que possam causar problemas (opcional, ajuste se necessário) */
+      @media (prefers-reduced-motion: reduce) {
+        .link-card {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <img
+        src="img/logo.png"
+        alt="Logotipo da Ribbs Hamburgueria Artesanal"
+        class="logo"
+      />
+    </header>
+
+    <main>
+      <section class="section" aria-labelledby="entregas-title">
+        <h2 id="entregas-title">pedidos</h2>
+        <div class="links-container">
+          <a
+            href="delivery.html"
+            class="link-card"
+            target="_blank"
+            aria-label="Acessar Delivery Próprio"
+          >
+            <i class="fas fa-hamburger"></i>
+            Delivery Próprio
+          </a>
+
+          <a
+            href="https://www.ifood.com.br/delivery/recife-pe/ribbs-zn---hamburgueria-artesanal-campo-grande/bb90fb2c-3dfb-48eb-b1a3-059b0f25f418"
+            class="link-card btn-ifood"
+            target="_blank"
+            aria-label="Acessar iFood para pedidos"
+          >
+            <i class="fas fa-utensils"></i>
+            iFood
+          </a>
+
+          <a
+            href="https://oia.99app.com/dlp9/4BEKxN"
+            class="link-card btn-99food"
+            target="_blank"
+            aria-label="Acessar 99 Food para pedidos"
+          >
+            <i class="fas fa-motorcycle"></i>
+            99 Food
+          </a>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="contato-title">
+        <h2 id="contato-title">Contato</h2>
+        <div class="links-container">
+          <a
+            href="https://wa.me/5581996469626"
+            class="link-card btn-whatsapp"
+            target="_blank"
+            aria-label="Entrar em contato via WhatsApp"
+          >
+            <i class="fab fa-whatsapp"></i>
+            WhatsApp
+          </a>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="localizacao-title">
+        <h2 id="localizacao-title">Localização</h2>
+        <div class="links-container">
+          <a
+            href="https://maps.app.goo.gl/vPUCuzMUTxHAnXTU9"
+            class="link-card"
+            target="_blank"
+            aria-label="Ver localização no Google Maps"
+          >
+            <i class="fas fa-map-marker-alt"></i>
+            Google Maps
+          </a>
+          <a
+            href="https://www.waze.com/en/live-map/directions/br/pe/ribbs-zn-hamburgueria-artesanal?place=ChIJlxVHwQkZqwcR3D2Bo4W9pHM"
+            class="link-card"
+            target="_blank"
+            aria-label="Ver localização no Waze"
+          >
+            <i class="fas fa-directions"></i>
+            Waze
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      RIBBS HAMBURGUERIA ARTESANAL ©️ <span id="year">2023</span>
+    </footer>
+
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

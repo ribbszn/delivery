@@ -153,13 +153,14 @@ function verificarTroco() {
 
   if (metodo === "Dinheiro") {
     areaTroco.classList.remove("hidden");
-    inputTroco.required = true; // Torna obrigatório apenas se for dinheiro
+    inputTroco.required = false; // ✅ NÃO é obrigatório
   } else {
     areaTroco.classList.add("hidden");
-    inputTroco.required = false; // Remove a obrigatoriedade para não travar o formulário
+    inputTroco.required = false;
     inputTroco.value = "";
   }
 }
+
 // --- Checkout e Entrega ---
 function selecionarModo(modo) {
   modoEntrega = modo;
@@ -1129,13 +1130,21 @@ function enviarZap(e) {
 
   // 3. Validação de Troco
   let trocoTexto = "";
+
   if (pag === "Dinheiro") {
-    const valorTroco = elTroco ? parseFloat(elTroco.value) : 0;
-    if (isNaN(valorTroco) || valorTroco < total) {
-      alert("O valor do troco deve ser maior ou igual ao total do pedido.");
-      return;
+    const trocoStr = elTroco ? elTroco.value.trim() : "";
+
+    // Só valida se o cliente digitou algum valor
+    if (trocoStr !== "") {
+      const valorTroco = parseFloat(trocoStr);
+
+      if (isNaN(valorTroco) || valorTroco < total) {
+        alert("O valor do troco deve ser maior ou igual ao total do pedido.");
+        return;
+      }
+
+      trocoTexto = `%0a*Troco para:* R$ ${valorTroco.toFixed(2)}`;
     }
-    trocoTexto = `%0a*Troco para:* R$ ${valorTroco.toFixed(2)}`;
   }
 
   // 4. Montagem da Mensagem (Melhorada)

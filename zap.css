@@ -63,16 +63,16 @@ header {
 
 .form-section h4 {
   margin-top: 5px;
-  margin-bottom: 10px;
+  margin-bottom: 10px; /* Reduzido de var(--padding-medium) */
   font-size: var(--font-size-large);
 }
 .input-group {
-  margin-bottom: 10px;
+  margin-bottom: 10px; /* Espaço entre um campo e outro */
 }
 
 .input-group label {
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 2px; /* Reduzido de 5px para 2px */
   font-size: var(--font-size-medium);
   color: #ddd;
 }
@@ -96,7 +96,7 @@ header {
 
 /* Resumo Final */
 .resumo-final {
-  background: rgba(34, 34, 34, 0.8);
+  background: rgba(34, 34, 34, 0.8); /* Mistura do sólido com transparência */
   padding: var(--padding-large);
   border-radius: var(--border-radius-medium);
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
@@ -135,8 +135,12 @@ header {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Erros de Validação */
@@ -217,22 +221,12 @@ header {
   color: #000;
 }
 
-/* --- Cards do Cardápio (AJUSTADO PARA 2 COLUNAS) --- */
+/* --- Cards do Cardápio --- */
 .cardapio {
   display: grid;
-  /* Força 2 colunas iguais no mobile */
-  grid-template-columns: repeat(2, 1fr); 
-  gap: 10px; /* Reduzido levemente para caber melhor em telas pequenas */
-  padding: 10px;
-}
-
-/* Para Desktop, podemos manter mais colunas */
-@media (min-width: 768px) {
-  .cardapio {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--padding-medium);
-    padding: var(--padding-medium);
-  }
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--padding-medium);
+  padding: var(--padding-medium);
 }
 
 .card {
@@ -246,30 +240,23 @@ header {
 
 .card img {
   width: 100%;
-  height: 100px; /* Aumentado levemente para preencher melhor o card */
+  height: 80px;
   object-fit: cover;
   border-radius: var(--border-radius-small);
   cursor: pointer;
 }
 
 .card h3 {
-  font-size: 1em; /* Reduzido de 1.1em para não quebrar a linha em 2 colunas */
+  font-size: var(--font-size-large);
   color: var(--amarelo);
   margin: var(--padding-small) 0 5px 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .descricao {
-  font-size: 0.75em; /* Reduzido para otimizar espaço lateral */
+  font-size: 0.85em;
   color: #bbb;
   margin-bottom: var(--padding-medium);
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* Limita a 2 linhas para manter simetria */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  line-height: 1.3;
 }
 
 .options-row {
@@ -283,7 +270,6 @@ header {
 .btn-personalizar {
   background: var(--amarelo);
   color: #000;
-  font-size: 0.85em; /* Ajuste para caber no card menor */
 }
 
 /* --- Carrinho Modernizado (Estilo Inferior) --- */
@@ -470,7 +456,7 @@ header {
   -webkit-backdrop-filter: blur(8px);
 }
 
-/* --- Estilização dos Modais de Checkout --- */
+/* --- Estilização dos Modais de Checkout (Novo) --- */
 #modalModoEntrega h3,
 #modalDados h3 {
   color: var(--amarelo);
@@ -486,27 +472,32 @@ header {
   gap: var(--padding-medium);
 }
 
+/* Estilização Dark para os Inputs do Modal de Dados */
 #modalDados input,
 #modalDados select {
   width: 100%;
   padding: 12px;
   margin-top: 5px;
-  background-color: #2a2a2a;
-  border: 1px solid #444;
+  background-color: #2a2a2a; /* Fundo cinza escuro */
+  border: 1px solid #444; /* Borda suave */
   border-radius: var(--border-radius-small);
-  color: var(--texto);
+  color: var(--texto); /* Cor do texto definida no seu :root */
   font-size: 1rem;
-  box-sizing: border-box;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  box-sizing: border-box; /* Garante que o padding não quebre a largura */
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
 }
 
+/* Efeito ao clicar/focar no campo */
 #modalDados input:focus,
 #modalDados select:focus {
   outline: none;
-  border-color: var(--amarelo);
+  border-color: var(--amarelo); /* Destaque com a cor amarela do seu tema */
   box-shadow: 0 0 5px rgba(255, 213, 0, 0.3);
 }
 
+/* Estilização do dropdown (seta) para o select no modo dark */
 #modalDados select {
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
@@ -516,8 +507,13 @@ header {
   padding-right: 40px;
 }
 
+/* Cor do texto placeholder */
 #modalDados input::placeholder {
   color: #888;
+}
+
+.troco-area input {
+  margin-top: 10px;
 }
 
 .resumo-final {
@@ -653,8 +649,8 @@ header {
 
 /* --- Upsell --- */
 #upsellContainer {
-  padding: 14px 10px;
-  background: rgba(255, 213, 0, 0.05);
+  padding: 14px 10px; /* Mais espaçamento para respirar */
+  background: rgba(255, 213, 0, 0.05); /* Fundo levemente amarealado */
   border-top: 1px dashed var(--amarelo);
   border-bottom: 1px dashed var(--amarelo);
   margin-bottom: 14px;
@@ -674,36 +670,47 @@ header {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding: 8px 5px 16px 5px;
+  padding: 8px 5px 16px 5px; /* Padding extra embaixo para a sombra */
   scrollbar-width: none;
-  justify-content: flex-start;
+  justify-content: flex-start; /* Alinha à esquerda no scroll */
 }
 
+/* Ocultar scrollbar */
 .upsell-scroll::-webkit-scrollbar {
   display: none;
 }
 
+/* Animação de Pulso Dourado */
 @keyframes goldPulse {
-  0% { box-shadow: 0 0 0 0 rgba(255, 213, 0, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(255, 213, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 213, 0, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 213, 0, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 213, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 213, 0, 0);
+  }
 }
 
 .upsell-card {
-  min-width: 90px;
+  min-width: 90px; /* Um pouco mais largo */
   background: #222;
   border-radius: var(--border-radius-medium);
   padding: 9px;
   text-align: center;
-  border: 1px solid var(--amarelo);
-  position: relative;
+  border: 1px solid var(--amarelo); /* Borda Dourada Fixa */
+  position: relative; /* Necessário para a etiqueta absoluta */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
+
+  /* A mágica acontece aqui */
   animation: goldPulse 2s infinite;
 }
 
+/* Etiqueta de Sugestão Flutuante */
 .upsell-card::before {
   content: "SUGESTÃO";
   position: absolute;
@@ -756,6 +763,9 @@ header {
   transition: transform 0.2s;
 }
 
+.upsell-card button:active {
+  transform: scale(0.95);
+}
 /* Espaçamento e Responsividade */
 main,
 .cardapio {

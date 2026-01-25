@@ -989,7 +989,7 @@ function generateDetails(c, isHTML = false) {
   }
 
   if (c.batatas) {
-    let bDetails = `Batatas (${c.batatas.tamanho})`;
+    let bDetails = `Batata (${c.batatas.tamanho})`;
     if (c.batatas.adicionais.length) {
       const adicionaisStr = c.batatas.adicionais
         .map((e) => `${e.nome} (${c.batatas.adicionaisPosicao[e.nome]})`)

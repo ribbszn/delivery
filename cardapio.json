@@ -297,7 +297,8 @@
           { "nome": "Antártica Lata (Inclusa)", "adicional": 0 },
           { "nome": "Trocar por Coca Lata", "adicional": 1 },
           { "nome": "Trocar por Coca Lata Zero", "adicional": 1 },
-          { "nome": "Trocar por Antártica 1L", "adicional": 2 }
+          { "nome": "Trocar por Antártica 1L", "adicional": 2 },
+          { "nome": "Trocar por Milk Morango 300Ml", "adicional": 6 }
         ]
       },
       "paidExtras": [

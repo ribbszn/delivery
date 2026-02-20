@@ -350,6 +350,9 @@ function parseComboItems(qty, comboName, obs) {
 
   const comboItems = [];
   let currentItem = null;
+  // Batata e Bebida são dados do combo inteiro, não de um burger específico
+  let comboBatata = null;
+  let comboBebida = null;
 
   parts.forEach((part) => {
     // Detectar início de um novo item
@@ -372,9 +375,9 @@ function parseComboItems(qty, comboName, obs) {
     // Processar detalhes do item atual
     else if (currentItem) {
       if (part.match(/^ponto:/i)) {
-        currentItem.ponto = part.replace(/ponto:/i, "").trim();
+        currentItem.ponto = part.replace(/^ponto:/i, "").trim();
       } else if (part.match(/^sem:/i)) {
-        const items = part.replace(/sem:/i, "").trim();
+        const items = part.replace(/^sem:/i, "").trim();
         currentItem.sem = items
           .split(",")
           .map((i) => i.trim())
@@ -385,9 +388,21 @@ function parseComboItems(qty, comboName, obs) {
           .split(",")
           .map((i) => i.trim())
           .filter(Boolean);
+      } else if (part.match(/^batata:/i)) {
+        // Batata pertence ao combo, não ao burger — guarda no nível certo
+        comboBatata = part.replace(/^batata:/i, "").trim();
+      } else if (part.match(/^bebida:/i)) {
+        // Bebida pertence ao combo, não ao burger — guarda no nível certo
+        comboBebida = part.replace(/^bebida:/i, "").trim();
       } else if (!part.match(/^nome:/i) && part.length > 0) {
         currentItem.obs.push(part);
       }
+    }
+    // Batata e Bebida que vierem FORA de qualquer bloco de burger
+    else if (part.match(/^batata:/i)) {
+      comboBatata = part.replace(/^batata:/i, "").trim();
+    } else if (part.match(/^bebida:/i)) {
+      comboBebida = part.replace(/^bebida:/i, "").trim();
     }
   });
 
@@ -396,11 +411,29 @@ function parseComboItems(qty, comboName, obs) {
     comboItems.push(currentItem);
   }
 
+  // Segurança: se Batata/Bebida caíram em obs de algum burger (edge case),
+  // move para o nível do combo
+  comboItems.forEach((burger) => {
+    burger.obs = burger.obs.filter((o) => {
+      if (o.match(/^batata:/i)) {
+        comboBatata = comboBatata || o.replace(/^batata:/i, "").trim();
+        return false;
+      }
+      if (o.match(/^bebida:/i)) {
+        comboBebida = comboBebida || o.replace(/^bebida:/i, "").trim();
+        return false;
+      }
+      return true;
+    });
+  });
+
   return {
     qty,
     name: comboName,
     isCombo: true,
     items: comboItems,
+    batata: comboBatata,
+    bebida: comboBebida,
   };
 }
 
@@ -429,11 +462,11 @@ function formatOrderItemsForCard(items) {
           }
 
           if (subItem.sem.length > 0) {
-            html += `<div class="item-detail"><strong>Sem:</strong> ${subItem.sem.join(", ")}</div>`;
+            html += `<div class="item-detail item-detail--remove"><strong>Sem:</strong> ${subItem.sem.join(", ")}</div>`;
           }
 
           if (subItem.adicionais.length > 0) {
-            html += `<div class="item-detail"><strong>Adicionais:</strong> ${subItem.adicionais.join(", ")}</div>`;
+            html += `<div class="item-detail item-detail--add"><strong>➕ Adicionais:</strong> ${subItem.adicionais.join(", ")}</div>`;
           }
 
           if (subItem.obs.length > 0) {
@@ -444,6 +477,14 @@ function formatOrderItemsForCard(items) {
 
           html += `</div>`;
         });
+
+        // Batata e Bebida do combo — exibidos com destaque após os burgers
+        if (parsed.batata) {
+          html += `<div class="combo-upgrade combo-upgrade--batata">🍟 <strong>Batata:</strong> ${parsed.batata}</div>`;
+        }
+        if (parsed.bebida) {
+          html += `<div class="combo-upgrade combo-upgrade--bebida">🥤 <strong>Bebida:</strong> ${parsed.bebida}</div>`;
+        }
 
         html += `</div>`;
         return html;
@@ -555,11 +596,6 @@ function renderOrder(orderId, order, isNew = false) {
         </button>
         <button class="btn-order btn-print-customer btn-small" onclick="printCustomer('${orderId}')">
           🧾 Cliente
-        </button>
-      </div>
-      <div class="order-actions-row">
-        <button class="btn-order btn-delivery-whatsapp" onclick="sendToDeliveryWhatsApp('${orderId}')">
-          🛵 Enviar para Entregador
         </button>
       </div>
       <div class="order-actions-row">
@@ -759,6 +795,14 @@ async function printKitchen(orderId) {
             });
           }
         });
+
+        // Batata e Bebida do combo
+        if (parsed.batata) {
+          printContent += `<div class="item-detail"><strong>🍟 Batata:</strong> ${parsed.batata}</div>`;
+        }
+        if (parsed.bebida) {
+          printContent += `<div class="item-detail"><strong>🥤 Bebida:</strong> ${parsed.bebida}</div>`;
+        }
       } else {
         // Item simples
         printContent += `<div class="item-header">${parsed.qty}x ${parsed.name}</div>`;
@@ -888,6 +932,14 @@ async function printCustomer(orderId) {
             });
           }
         });
+
+        // Batata e Bebida do combo
+        if (parsed.batata) {
+          printContent += `<div class="item-detail"><strong>🍟 Batata:</strong> ${parsed.batata}</div>`;
+        }
+        if (parsed.bebida) {
+          printContent += `<div class="item-detail"><strong>🥤 Bebida:</strong> ${parsed.bebida}</div>`;
+        }
       } else {
         // Item simples
         printContent += `<div class="item-header">${parsed.qty}x ${parsed.name}</div>`;
@@ -1008,125 +1060,6 @@ async function cancelOrder(orderId) {
     console.error("Erro ao cancelar pedido:", error);
     showToast("Erro ao cancelar pedido", "error");
   }
-}
-
-// ================================
-// ENVIAR PARA ENTREGADOR — WHATSAPP
-// ================================
-
-// Guarda referência da aba do WhatsApp Web para reutilizar
-let _whatsAppDeliveryWindow = null;
-
-function sendToDeliveryWhatsApp(orderId) {
-  const order = State.orders[orderId];
-  if (!order) {
-    showToast("Pedido não encontrado", "error");
-    return;
-  }
-
-  const DELIVERY_PHONE = "5581983048527";
-
-  const cliente = order.cliente || order.nomeCliente || order.nome || "Cliente";
-  const pedidoNum = `#${orderId.slice(-6).toUpperCase()}`;
-
-  // ── Monta a mensagem ──────────────────────────────────────────
-  let msg = "";
-  msg += `🛵 *PEDIDO PARA ENTREGA — ${pedidoNum}*\n\n`;
-  msg += `👤 *Cliente:* ${cliente}\n\n`;
-
-  // Itens detalhados
-  msg += `📦 *Itens:*\n`;
-  msg += _buildItemsTextForWhatsApp(order.itens || []);
-  msg += `\n`;
-
-  // Endereço
-  if (order.endereco) {
-    msg += `\n📍 *Endereço:* ${order.endereco}`;
-  }
-  if (order.bairro) {
-    msg += `\n🏘️ *Bairro:* ${order.bairro}`;
-  }
-  // Complemento pode vir embutido no endereço ou em campo separado
-  if (order.complemento && order.complemento.trim()) {
-    msg += `\n🏠 *Complemento:* ${order.complemento.trim()}`;
-  }
-  if (order.taxaEntrega) {
-    msg += `\n🛵 *Taxa de entrega:* ${formatPrice(order.taxaEntrega)}`;
-  }
-
-  msg += `\n`;
-
-  // Pagamento
-  if (order.pagamento) {
-    msg += `\n💳 *Pagamento:* ${formatPayment(order.pagamento)}`;
-  }
-  if (order.troco) {
-    msg += `\n💵 *${order.troco}*`;
-  }
-
-  // Total
-  msg += `\n\n💰 *Total: ${formatPrice(order.total || 0)}*`;
-  // ─────────────────────────────────────────────────────────────
-
-  const encodedMsg = encodeURIComponent(msg);
-  const waUrl = `https://web.whatsapp.com/send?phone=${DELIVERY_PHONE}&text=${encodedMsg}`;
-
-  // Se a aba do WhatsApp Web ainda estiver aberta, redireciona ela
-  // para a nova mensagem sem abrir uma guia extra
-  if (_whatsAppDeliveryWindow && !_whatsAppDeliveryWindow.closed) {
-    _whatsAppDeliveryWindow.location.href = waUrl;
-    _whatsAppDeliveryWindow.focus();
-  } else {
-    // Abre nova aba com nome fixo — se já existir outra aba com esse nome
-    // o browser a reutiliza automaticamente
-    _whatsAppDeliveryWindow = window.open(
-      waUrl,
-      "ribbs-zn-entregador-whatsapp",
-    );
-  }
-
-  showToast("📱 Abrindo WhatsApp para entregador...", "success");
-}
-
-// Formata os itens do pedido em texto legível para o WhatsApp
-function _buildItemsTextForWhatsApp(items) {
-  if (!items || items.length === 0) return "Nenhum item\n";
-
-  return (
-    items
-      .map((item) => {
-        const parsed = parseOrderItem(item);
-        let text = `▸ ${parsed.qty}x *${parsed.name}*`;
-
-        if (parsed.isCombo && parsed.items) {
-          // Combo: lista cada burger com suas customizações
-          parsed.items.forEach((sub) => {
-            text += `\n   • ${sub.name}`;
-            if (sub.ponto) text += ` _(${sub.ponto})_`;
-            if (sub.sem.length > 0)
-              text += `\n     ❌ Sem: ${sub.sem.join(", ")}`;
-            if (sub.adicionais.length > 0)
-              text += `\n     ➕ ${sub.adicionais.join(", ")}`;
-            if (sub.obs && sub.obs.length > 0)
-              text += `\n     📝 ${sub.obs.join(", ")}`;
-          });
-          // Upgrades de batata/bebida ficam no obs de nível combo
-          // Aparecerão automaticamente em sub.obs se existirem
-        } else {
-          // Item simples
-          if (parsed.ponto) text += ` _(${parsed.ponto})_`;
-          if (parsed.sem.length > 0)
-            text += `\n   ❌ Sem: ${parsed.sem.join(", ")}`;
-          if (parsed.adicionais.length > 0)
-            text += `\n   ➕ ${parsed.adicionais.join(", ")}`;
-          if (parsed.obs.length > 0)
-            text += `\n   📝 ${parsed.obs.join(" | ")}`;
-        }
-
-        return text;
-      })
-      .join("\n") + "\n"
-  );
 }
 
 // ================================
@@ -1489,7 +1422,7 @@ function renderInProgressOrder(order) {
 
       // Se for combo, processar cada sub-item
       if (parsed.isCombo) {
-        return parsed.items
+        let comboHTML = parsed.items
           .map((subItem) => {
             let modsParts = [];
 
@@ -1524,6 +1457,20 @@ function renderInProgressOrder(order) {
         `;
           })
           .join("");
+
+        // Batata e Bebida do combo no widget
+        if (parsed.batata) {
+          comboHTML += `<div class="in-progress-item in-progress-item--upgrade">
+            <span class="in-progress-item-name">🍟 ${parsed.batata}</span>
+          </div>`;
+        }
+        if (parsed.bebida) {
+          comboHTML += `<div class="in-progress-item in-progress-item--upgrade">
+            <span class="in-progress-item-name">🥤 ${parsed.bebida}</span>
+          </div>`;
+        }
+
+        return comboHTML;
       }
 
       // Item simples

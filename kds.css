@@ -533,20 +533,6 @@ button {
   transform: translateY(-2px);
 }
 
-.btn-delivery-whatsapp {
-  background: #25d366;
-  color: #fff;
-  font-size: 0.95rem;
-  letter-spacing: 0.3px;
-  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.35);
-}
-
-.btn-delivery-whatsapp:hover {
-  background: #1ebe5d;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.5);
-}
-
 /* ================================
    EMPTY STATE
    ================================ */
@@ -2364,6 +2350,59 @@ button {
 
 .order-item-combo .order-item-block:last-child {
   margin-bottom: 0;
+}
+
+/* Modificadores coloridos nos detalhes do item */
+.item-detail--remove {
+  color: #ff6b6b;
+}
+
+.item-detail--remove strong {
+  color: #ff6b6b;
+}
+
+.item-detail--add {
+  color: #69db7c;
+}
+
+.item-detail--add strong {
+  color: #69db7c;
+}
+
+/* Batata e Bebida do combo — destaque visual */
+.combo-upgrade {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.combo-upgrade strong {
+  min-width: 70px;
+}
+
+.combo-upgrade--batata {
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  color: #ffc107;
+}
+
+.combo-upgrade--bebida {
+  background: rgba(33, 150, 243, 0.12);
+  border: 1px solid rgba(33, 150, 243, 0.35);
+  color: #64b5f6;
+}
+
+/* Item de upgrade no widget In-Progress */
+.in-progress-item--upgrade {
+  opacity: 0.85;
+  padding-left: 8px;
+  border-left: 2px solid rgba(255, 193, 7, 0.4);
+  margin-top: 2px;
 }
 
 /* ================================

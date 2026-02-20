@@ -223,49 +223,22 @@ async function loadMenuData() {
     // 2. Fetch dos dados do Firebase (com fallback)
     const db = firebase.database();
 
-    let precosFirebase = {};
     let availFirebase = {};
     let extrasAvailFirebase = {};
-    let subitemsAvailFirebase = {};
 
     try {
-      const precosSnap = await db.ref("precos").once("value");
-      precosFirebase = precosSnap.val() || {};
-      console.log("✅ Preços carregados do Firebase");
-    } catch (err) {
-      console.warn('⚠️ Nó "precos" não existe ou sem permissão');
-      console.warn("📋 Usando apenas preços do cardapio.json");
-    }
-
-    try {
-      const availSnap = await db.ref("menuAvailability").once("value");
+      const [availSnap, extrasSnap] = await Promise.all([
+        db.ref("menuAvailability").once("value"),
+        db.ref("paidExtrasAvailability").once("value"),
+      ]);
       availFirebase = availSnap.val() || {};
-    } catch (err) {
-      console.warn('⚠️ Nó "menuAvailability" sem permissão');
-    }
-
-    try {
-      const extrasSnap = await db.ref("paidExtrasAvailability").once("value");
       extrasAvailFirebase = extrasSnap.val() || {};
     } catch (err) {
-      console.warn('⚠️ Nó "paidExtrasAvailability" sem permissão');
+      console.warn("⚠️ Erro ao carregar disponibilidade do Firebase");
     }
 
-    try {
-      const subitemsSnap = await db.ref("subitemsAvailability").once("value");
-      subitemsAvailFirebase = subitemsSnap.val() || {};
-    } catch (err) {
-      console.warn('⚠️ Nó "subitemsAvailability" sem permissão');
-    }
-
-    // 3. Mesclar dados: Firebase sobrescreve JSON
-    menuData = mergeMenuData(
-      jsonMenu,
-      precosFirebase,
-      availFirebase,
-      extrasAvailFirebase,
-      subitemsAvailFirebase,
-    );
+    // 3. Mesclar dados
+    menuData = mergeMenuData(jsonMenu, availFirebase, extrasAvailFirebase);
 
     console.log("✅ Cardápio mesclado:", menuData);
 
@@ -286,70 +259,30 @@ async function loadMenuData() {
   }
 }
 
-function mergeMenuData(
-  jsonMenu,
-  precos,
-  availability,
-  extrasAvail,
-  subitemsAvail,
-) {
+function mergeMenuData(jsonMenu, availability, extrasAvail) {
   const merged = {};
 
   Object.keys(jsonMenu).forEach((categoria) => {
     merged[categoria] = jsonMenu[categoria].map((item) => {
-      const itemKey = sanitizeKey(item.nome);
-
-      // Mesclar preços
-      let precosMesclados = [...item.precoBase];
-
-      if (precos[categoria] && precos[categoria][itemKey]) {
-        const precosFirebase = precos[categoria][itemKey];
-
-        if (Array.isArray(precosFirebase)) {
-          precosMesclados = precosFirebase;
-        } else if (typeof precosFirebase === "object") {
-          // Pode ser {Simples: 12, Duplo: 18, ...}
-          if (item.opcoes) {
-            precosMesclados = item.opcoes.map((opcao, idx) => {
-              const opcaoKey = sanitizeKey(opcao);
-              return precosFirebase[opcaoKey] !== undefined
-                ? precosFirebase[opcaoKey]
-                : item.precoBase[idx];
-            });
-          }
-        }
-      }
-
-      // Mesclar disponibilidade do item principal
+      // Usa a mesma chave que kds.js e app.js: "Categoria:Nome"
+      const kdsKey = `${categoria}:${item.nome}`;
       const isAvailable =
-        availability[itemKey] !== undefined ? availability[itemKey] : true;
+        availability[kdsKey] !== undefined ? availability[kdsKey] : true;
 
-      // Mesclar disponibilidade dos subitens (opções)
-      let subitemsAvailability = {};
-      if (subitemsAvail[itemKey]) {
-        subitemsAvailability = subitemsAvail[itemKey];
-      }
-
-      // Mesclar adicionais (paidExtras)
-      let mergedExtras = item.paidExtras || item.adicionais || [];
-
-      if (extrasAvail[itemKey]) {
-        mergedExtras = mergedExtras.map((extra) => ({
+      // Adicionais: chave é o nome direto do extra, igual ao kds.js e app.js
+      const mergedExtras = (item.paidExtras || item.adicionais || []).map(
+        (extra) => ({
           ...extra,
-          disponivel: extrasAvail[itemKey][sanitizeKey(extra.nome)] !== false,
-        }));
-      }
+          disponivel: extrasAvail[extra.nome] !== false,
+        }),
+      );
 
       return {
         ...item,
         categoria,
-        precoBase: precosMesclados,
         disponivel: isAvailable,
         paidExtras: mergedExtras,
         adicionais: mergedExtras,
-        _sourcePrecos:
-          precos[categoria] && precos[categoria][itemKey] ? "firebase" : "json",
-        _subitemsAvailability: subitemsAvailability,
       };
     });
   });
@@ -422,53 +355,40 @@ function renderCardapio() {
 }
 
 function createMenuCard(item) {
-  const itemKey = sanitizeKey(item.nome);
   const statusClass = item.disponivel ? "active" : "";
-  const statusText = item.disponivel ? "Ativo" : "Esgotado";
-
-  // Imagem do produto (com fallback)
   const imgSrc = item.img || "./img/placeholder.png";
-  const imgAlt = item.nome;
 
   let precosHtml = "";
-
   if (item.opcoes && item.opcoes.length > 0) {
     item.opcoes.forEach((opcao, idx) => {
       const preco = item.precoBase[idx] || 0;
-      const sourceClass = item._sourcePrecos === "firebase" ? "firebase" : "";
-
       precosHtml += `
         <div class="price-option">
           <span class="price-option-label">${opcao}</span>
-          <div class="price-input-group">
-            <span class="price-badge ${sourceClass}">R$ ${preco.toFixed(2)}</span>
-          </div>
+          <span class="price-badge">R$ ${preco.toFixed(2)}</span>
         </div>
       `;
     });
   } else {
     const preco = item.precoBase[0] || 0;
-    const sourceClass = item._sourcePrecos === "firebase" ? "firebase" : "";
-
     precosHtml = `
       <div class="price-option">
         <span class="price-option-label">Preço</span>
-        <div class="price-input-group">
-          <span class="price-badge ${sourceClass}">R$ ${preco.toFixed(2)}</span>
-        </div>
+        <span class="price-badge">R$ ${preco.toFixed(2)}</span>
       </div>
     `;
   }
 
+  // Usa data-* para evitar problemas de escaping com aspas no nome
+  const itemJson = JSON.stringify(item).replace(/'/g, "&apos;");
   return `
-    <div class="menu-card" data-item-key="${itemKey}" data-categoria="${item.categoria}">
+    <div class="menu-card" data-categoria="${item.categoria}">
       <div class="menu-card-image">
-        <img src="${imgSrc}" alt="${imgAlt}" onerror="this.src='./img/placeholder.png'" />
+        <img src="${imgSrc}" alt="${item.nome}" onerror="this.src='./img/placeholder.png'" />
         <div class="menu-card-image-overlay ${statusClass ? "" : "esgotado"}">
           ${statusClass ? "" : '<span class="esgotado-badge">ESGOTADO</span>'}
         </div>
       </div>
-      
       <div class="menu-card-content">
         <div class="menu-card-header">
           <div class="menu-card-title">
@@ -476,18 +396,14 @@ function createMenuCard(item) {
             <span class="menu-card-category">${item.categoria}</span>
           </div>
           <div class="availability-toggle">
-            <div class="toggle-switch ${statusClass}" 
-                 onclick="toggleAvailability('${itemKey}', ${item.disponivel}, '${item.categoria}')">
+            <div class="toggle-switch ${statusClass}"
+                 onclick="toggleAvailability('${item.nome.replace(/'/g, "\'")}', ${item.disponivel}, '${item.categoria}')">
             </div>
           </div>
         </div>
-        
-        <div class="menu-card-prices">
-          ${precosHtml}
-        </div>
-        
+        <div class="menu-card-prices">${precosHtml}</div>
         <div class="menu-card-actions">
-          <button class="btn-edit" onclick='openEditModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
+          <button class="btn-edit" onclick='openEditModal(${itemJson})'>
             ✏️ Editar
           </button>
         </div>
@@ -557,45 +473,29 @@ function refreshMenuData() {
 // TOGGLE DE DISPONIBILIDADE
 // ================================================================
 
-async function toggleAvailability(itemKey, currentStatus, categoria) {
+async function toggleAvailability(itemNome, currentStatus, categoria) {
   const newStatus = !currentStatus;
-
-  // FIX: kds.js e app.js leem menuAvailability com chave "Categoria:Nome"
-  // O admin salvava com sanitizeKey(nome) — formato incompatível
-  const kdsKey = categoria
-    ? `${categoria}:${_resolveItemName(itemKey)}`
-    : itemKey;
+  // Chave no formato "Categoria:Nome" — igual ao kds.js e app.js
+  const kdsKey = `${categoria}:${itemNome}`;
 
   try {
     await firebase.database().ref(`menuAvailability/${kdsKey}`).set(newStatus);
-
     console.log(`✅ ${kdsKey} → ${newStatus ? "Ativo" : "Esgotado"}`);
 
     // Atualizar localmente
     Object.keys(menuData).forEach((cat) => {
       menuData[cat].forEach((item) => {
-        if (sanitizeKey(item.nome) === itemKey) {
+        if (item.nome === itemNome && item.categoria === categoria) {
           item.disponivel = newStatus;
         }
       });
     });
 
-    // Re-renderizar
     renderCardapio();
   } catch (error) {
     console.error("❌ Erro ao alterar disponibilidade:", error);
     alert("Erro ao alterar disponibilidade");
   }
-}
-
-// Helper: converte sanitizeKey de volta para nome original buscando em menuData
-function _resolveItemName(itemKey) {
-  for (const cat of Object.keys(menuData || {})) {
-    for (const item of menuData[cat]) {
-      if (sanitizeKey(item.nome) === itemKey) return item.nome;
-    }
-  }
-  return itemKey;
 }
 
 // ================================================================
@@ -635,78 +535,34 @@ function openEditModal(item) {
   `;
 
   // ============================================
-  // PREÇOS E DISPONIBILIDADE DE SUBITENS
+  // PREÇOS (somente leitura — editar no cardapio.json)
   // ============================================
   html +=
     '<div style="background: var(--bg-dark); padding: 16px; border-radius: 12px; border: 2px solid var(--border);">';
   html +=
-    '<h3 style="color: var(--primary); margin-bottom: 16px;">💰 Preços e Disponibilidade</h3>';
+    '<h3 style="color: var(--primary); margin-bottom: 8px;">💰 Preços</h3>';
+  html +=
+    '<p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">Os preços são definidos no cardapio.json.</p>';
 
   if (item.opcoes && item.opcoes.length > 0) {
-    // Item com múltiplas opções (Simples, Duplo, etc)
     item.opcoes.forEach((opcao, idx) => {
       const preco = item.precoBase[idx] || 0;
-      const opcaoKey = sanitizeKey(opcao);
-
-      // Verificar disponibilidade do subitem no Firebase
-      let subitemDisponivel = true; // Default: disponível
-
-      // Se existir dados de disponibilidade de subitens
-      if (
-        item._subitemsAvailability &&
-        item._subitemsAvailability[opcaoKey] !== undefined
-      ) {
-        subitemDisponivel = item._subitemsAvailability[opcaoKey];
-      }
-
       html += `
-        <div style="background: var(--bg-card); padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <label style="color: var(--text-primary); font-weight: 500;">${opcao}</label>
-            <div class="toggle-switch ${subitemDisponivel ? "active" : ""}" 
-                 onclick="toggleSubitemInModal(${idx}, '${opcaoKey}')"
-                 data-subitem-idx="${idx}"
-                 data-subitem-key="${opcaoKey}"
-                 data-subitem-status="${subitemDisponivel}">
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="color: var(--text-secondary); font-size: 0.9rem;">R$</span>
-            <input 
-              type="number" 
-              class="price-input" 
-              data-opcao-idx="${idx}"
-              value="${preco}"
-              step="0.50"
-              min="0"
-              style="flex: 1;"
-            >
-          </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+          <span style="color: var(--text-primary);">${opcao}</span>
+          <span style="color: var(--primary); font-weight: 600;">R$ ${preco.toFixed(2)}</span>
         </div>
       `;
     });
   } else {
-    // Item sem opções (preço único)
     const preco = item.precoBase[0] || 0;
     html += `
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border-radius: 8px;">
-        <label style="color: var(--text-secondary);">Preço Base</label>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="color: var(--text-secondary);">R$</span>
-          <input 
-            type="number" 
-            class="price-input" 
-            data-opcao-idx="0"
-            value="${preco}"
-            step="0.50"
-            min="0"
-            style="width: 120px;"
-          >
-        </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+        <span style="color: var(--text-secondary);">Preço Base</span>
+        <span style="color: var(--primary); font-weight: 600;">R$ ${preco.toFixed(2)}</span>
       </div>
     `;
   }
-
   html += "</div>";
 
   // ============================================
@@ -757,21 +613,7 @@ function toggleItemInModal() {
   currentEditingItem.disponivel = newStatus;
 }
 
-// Toggle de subitem (opção) no modal
-function toggleSubitemInModal(idx, opcaoKey) {
-  const toggle = document.querySelector(`[data-subitem-idx="${idx}"]`);
-  const currentStatus = toggle.dataset.subitemStatus === "true";
-  const newStatus = !currentStatus;
-
-  toggle.classList.toggle("active");
-  toggle.dataset.subitemStatus = newStatus;
-
-  // Atualizar no objeto temporário
-  if (!currentEditingItem._subitemsAvailability) {
-    currentEditingItem._subitemsAvailability = {};
-  }
-  currentEditingItem._subitemsAvailability[opcaoKey] = newStatus;
-}
+// toggleSubitemInModal removido — subitemsAvailability não existe nas regras Firebase
 
 // Toggle de adicionais pagos no modal
 function toggleExtraInModal(idx) {
@@ -794,86 +636,42 @@ function closeEditModal() {
 async function saveItemChanges() {
   if (!currentEditingItem) return;
 
-  const itemKey = sanitizeKey(currentEditingItem.nome);
   const categoria = currentEditingItem.categoria;
+  const nome = currentEditingItem.nome;
 
   try {
     const db = firebase.database();
+    const updates = {};
 
-    // 1. Salvar disponibilidade do item principal
-    // FIX: kds.js e app.js leem com chave "Categoria:Nome", não sanitizeKey(nome)
-    const kdsItemKey = `${categoria}:${currentEditingItem.nome}`;
-    await db
-      .ref(`menuAvailability/${kdsItemKey}`)
-      .set(currentEditingItem.disponivel);
+    // 1. Disponibilidade do item — chave "Categoria:Nome" igual ao kds.js e app.js
+    updates[`menuAvailability/${categoria}:${nome}`] =
+      currentEditingItem.disponivel;
 
-    // FIX: também salvar no formato antigo para compatibilidade com código que ainda usa sanitizeKey
-    await db
-      .ref(`menuAvailability/${itemKey}`)
-      .set(currentEditingItem.disponivel);
-
-    // 2. Coletar e salvar novos preços
-    const priceInputs = document.querySelectorAll(
-      "#modal-edit-body .price-input",
-    );
-    const novosPrecos = [];
-
-    priceInputs.forEach((input) => {
-      novosPrecos.push(parseFloat(input.value) || 0);
-    });
-
-    let precosPath = `precos/${categoria}/${itemKey}`;
-
-    if (currentEditingItem.opcoes && currentEditingItem.opcoes.length > 0) {
-      // Salvar como objeto {Simples: 12, Duplo: 18, ...}
-      const precosObj = {};
-      currentEditingItem.opcoes.forEach((opcao, idx) => {
-        precosObj[sanitizeKey(opcao)] = novosPrecos[idx];
-      });
-      await db.ref(precosPath).set(precosObj);
-    } else {
-      // Salvar como array
-      await db.ref(precosPath).set(novosPrecos);
-    }
-
-    // 3. Salvar disponibilidade dos subitens (opções)
-    if (
-      currentEditingItem._subitemsAvailability &&
-      Object.keys(currentEditingItem._subitemsAvailability).length > 0
-    ) {
-      await db
-        .ref(`subitemsAvailability/${itemKey}`)
-        .set(currentEditingItem._subitemsAvailability);
-    }
-
-    // 4. Salvar disponibilidade dos adicionais
+    // 2. Adicionais pagos — salvar cada extra com nome direto na raiz de paidExtrasAvailability
+    //    igual ao formato que kds.js e app.js leem: paidExtrasAvailability["Bacon"] = true/false
     if (
       currentEditingItem.paidExtras &&
       currentEditingItem.paidExtras.length > 0
     ) {
-      const extrasObj = {};
       currentEditingItem.paidExtras.forEach((extra) => {
-        extrasObj[sanitizeKey(extra.nome)] = extra.disponivel !== false;
+        updates[`paidExtrasAvailability/${extra.nome}`] =
+          extra.disponivel !== false;
       });
-
-      await db.ref(`paidExtrasAvailability/${itemKey}`).set(extrasObj);
     }
 
-    console.log("✅ Alterações salvas no Firebase");
+    await db.ref().update(updates);
+
+    console.log("✅ Alterações salvas no Firebase:", Object.keys(updates));
 
     closeEditModal();
     refreshMenuData();
   } catch (error) {
     console.error("❌ Erro ao salvar:", error);
-
-    let errorMessage = "Erro ao salvar alterações";
-
-    if (error.code === "PERMISSION_DENIED") {
-      errorMessage =
-        "⚠️ Sem permissão para salvar.\n\nConfigure as regras do Firebase.";
-    }
-
-    alert(errorMessage);
+    alert(
+      error.code === "PERMISSION_DENIED"
+        ? "⚠️ Sem permissão para salvar. Verifique as regras do Firebase."
+        : "Erro ao salvar alterações",
+    );
   }
 }
 
@@ -955,54 +753,34 @@ async function loadInsumosData() {
       });
     });
 
-    // 5. Buscar disponibilidade do Firebase
+    // 5. Buscar disponibilidade do Firebase com nome direto (mesmo formato do kds.js e app.js)
     let globalPaidExtrasAvail = {};
     let globalIngredientsAvail = {};
-    let caldasAvail = {};
 
     try {
-      // FIX: ler do mesmo nó que kds.js e app.js usam
-      const paidExtrasSnap = await db
-        .ref("paidExtrasAvailability")
-        .once("value");
+      const [paidExtrasSnap, ingredientsSnap] = await Promise.all([
+        db.ref("paidExtrasAvailability").once("value"),
+        db.ref("ingredientsAvailability").once("value"),
+      ]);
       globalPaidExtrasAvail = paidExtrasSnap.val() || {};
-    } catch (err) {
-      console.warn("⚠️ Nó paidExtrasAvailability não existe");
-    }
-
-    try {
-      // FIX: ler do mesmo nó que kds.js e app.js usam
-      const ingredientsSnap = await db
-        .ref("ingredientsAvailability")
-        .once("value");
       globalIngredientsAvail = ingredientsSnap.val() || {};
     } catch (err) {
-      console.warn("⚠️ Nó ingredientsAvailability não existe");
+      console.warn("⚠️ Erro ao carregar disponibilidade de insumos");
     }
 
-    try {
-      const caldasSnap = await db.ref("milkshakeCaldas").once("value");
-      caldasAvail = caldasSnap.val() || {};
-    } catch (err) {
-      console.warn("⚠️ Nó milkshakeCaldas não existe");
-    }
-
-    // 6. Montar estrutura
+    // 6. Montar estrutura — chave é o nome direto, igual ao kds.js e app.js
     insumosData = {
       paidExtras: Array.from(paidExtrasSet).map((nome) => ({
         nome,
-        key: sanitizeKey(nome),
-        disponivel: globalPaidExtrasAvail[sanitizeKey(nome)] !== false,
+        disponivel: globalPaidExtrasAvail[nome] !== false,
       })),
       ingredients: Array.from(ingredientsSet).map((nome) => ({
         nome,
-        key: sanitizeKey(nome),
-        disponivel: globalIngredientsAvail[sanitizeKey(nome)] !== false,
+        disponivel: globalIngredientsAvail[nome] !== false,
       })),
       caldas: Array.from(caldasSet).map((nome) => ({
         nome,
-        key: sanitizeKey(nome),
-        disponivel: caldasAvail[sanitizeKey(nome)] !== false,
+        disponivel: true, // caldas não têm controle via Firebase nesta versão
       })),
     };
 
@@ -1038,7 +816,7 @@ function renderInsumos() {
           </div>
           <div class="insumo-toggle">
             <div class="toggle-switch ${statusClass}" 
-                 onclick="toggleGlobalInsumo('paidExtra', '${extra.key}', ${extra.disponivel})">
+                 onclick="toggleGlobalInsumo('paidExtra', '${extra.nome.replace(/'/g, "\'")}', ${extra.disponivel})">
             </div>
           </div>
         </div>
@@ -1069,7 +847,7 @@ function renderInsumos() {
           </div>
           <div class="insumo-toggle">
             <div class="toggle-switch ${statusClass}" 
-                 onclick="toggleGlobalInsumo('ingredient', '${ing.key}', ${ing.disponivel})">
+                 onclick="toggleGlobalInsumo('ingredient', '${ing.nome.replace(/'/g, "\'")}', ${ing.disponivel})">
             </div>
           </div>
         </div>
@@ -1097,7 +875,7 @@ function renderInsumos() {
           </div>
           <div class="insumo-toggle">
             <div class="toggle-switch ${statusClass}" 
-                 onclick="toggleGlobalInsumo('calda', '${calda.key}', ${calda.disponivel})">
+                 onclick="toggleGlobalInsumo('calda', '${calda.nome.replace(/'/g, "\'")}', ${calda.disponivel})">
             </div>
           </div>
         </div>
@@ -1146,7 +924,7 @@ function countUsageInMenu(insumoNome, type) {
   return count;
 }
 
-async function toggleGlobalInsumo(type, key, currentStatus) {
+async function toggleGlobalInsumo(type, nome, currentStatus) {
   const newStatus = !currentStatus;
 
   try {
@@ -1155,44 +933,34 @@ async function toggleGlobalInsumo(type, key, currentStatus) {
 
     switch (type) {
       case "paidExtra":
-        // FIX: kds.js e app.js leem de "paidExtrasAvailability", não "globalPaidExtrasAvailability"
-        path = `paidExtrasAvailability/${key}`;
+        // Salvar com nome direto — igual ao formato que kds.js e app.js leem
+        path = `paidExtrasAvailability/${nome}`;
         break;
       case "ingredient":
-        // FIX: kds.js e app.js leem de "ingredientsAvailability", não "globalIngredientsAvailability"
-        path = `ingredientsAvailability/${key}`;
+        path = `ingredientsAvailability/${nome}`;
         break;
       case "calda":
-        path = `milkshakeCaldas/${key}`;
-        break;
+        // caldas não têm nó Firebase nesta versão, apenas UI local
+        console.warn("Caldas não têm controle via Firebase nesta versão");
+        return;
     }
 
     await db.ref(path).set(newStatus);
-
     console.log(
-      `✅ ${key} (${type}) → ${newStatus ? "Disponível" : "Indisponível"}`,
+      `✅ "${nome}" (${type}) → ${newStatus ? "Disponível" : "Indisponível"}`,
     );
 
-    // Atualizar localmente
-    let targetArray;
-    switch (type) {
-      case "paidExtra":
-        targetArray = insumosData.paidExtras;
-        break;
-      case "ingredient":
-        targetArray = insumosData.ingredients;
-        break;
-      case "calda":
-        targetArray = insumosData.caldas;
-        break;
+    // Atualizar localmente pelo nome
+    const arrays = {
+      paidExtra: insumosData.paidExtras,
+      ingredient: insumosData.ingredients,
+    };
+    const targetArray = arrays[type];
+    if (targetArray) {
+      const item = targetArray.find((i) => i.nome === nome);
+      if (item) item.disponivel = newStatus;
     }
 
-    const item = targetArray.find((i) => i.key === key);
-    if (item) {
-      item.disponivel = newStatus;
-    }
-
-    // Re-renderizar
     renderInsumos();
   } catch (error) {
     console.error("❌ Erro ao alterar insumo:", error);
@@ -1222,7 +990,7 @@ async function loadDashboardData() {
   const dateEnd = new Date(selectedDate + "T23:59:59.999").getTime();
 
   try {
-    // Buscar pedidos do dia
+    // Buscar todos os pedidos do dia (incluindo entregues, que ficam em "pedidos")
     const pedidosSnap = await firebase
       .database()
       .ref("pedidos")
@@ -1231,22 +999,8 @@ async function loadDashboardData() {
       .endAt(dateEnd)
       .once("value");
 
-    // Buscar histórico do dia
-    const historicoSnap = await firebase
-      .database()
-      .ref("historico")
-      .orderByChild("timestamp")
-      .startAt(dateStart)
-      .endAt(dateEnd)
-      .once("value");
-
     const pedidos = [];
-
     pedidosSnap.forEach((child) => {
-      pedidos.push({ id: child.key, ...child.val() });
-    });
-
-    historicoSnap.forEach((child) => {
       pedidos.push({ id: child.key, ...child.val() });
     });
 
@@ -1702,7 +1456,8 @@ function openPedidoModal(pedidoId) {
   // Busca em allPedidos (aba Pedidos) e também em pedidosAtivos (aba Início)
   const pedido =
     allPedidos.find((p) => p.id === pedidoId) ||
-    pedidosAtivos.find((p) => p.id === pedidoId);
+    pedidosAtivos.find((p) => p.id === pedidoId) ||
+    historicoPedidos.find((p) => p.id === pedidoId);
   if (!pedido) return;
 
   currentPedidoModal = pedido;
@@ -1815,22 +1570,13 @@ async function finalizarPedidoRapido(pedidoId) {
     return;
 
   try {
-    // Adicionar timestamp de finalização
-    const pedidoFinalizado = {
-      ...pedido,
+    // Atualizar status para "entregue" — pedido fica em "pedidos" com status entregue
+    await firebase.database().ref(`pedidos/${pedidoId}`).update({
       status: "entregue",
       timestampFinalizacao: Date.now(),
-    };
+    });
 
-    // Mover para histórico
-    await firebase
-      .database()
-      .ref(`historico/${pedidoId}`)
-      .set(pedidoFinalizado);
-
-    // Remover de pedidos
-    await firebase.database().ref(`pedidos/${pedidoId}`).remove();
-
+    const pedidoFinalizado = { ...pedido, status: "entregue" };
     console.log("✅ Pedido finalizado");
 
     // Imprimir cupom
@@ -2362,9 +2108,9 @@ async function loadHistoricoData() {
     const dateStart = new Date(filterDate + "T00:00:00.000").getTime();
     const dateEnd = new Date(filterDate + "T23:59:59.999").getTime();
 
-    // Buscar pedidos do histórico
+    // Buscar pedidos entregues de "pedidos" (não existe nó "historico" nas regras)
     const snapshot = await db
-      .ref("historico")
+      .ref("pedidos")
       .orderByChild("timestamp")
       .startAt(dateStart)
       .endAt(dateEnd)
@@ -2372,10 +2118,11 @@ async function loadHistoricoData() {
 
     historicoPedidos = [];
     snapshot.forEach((child) => {
-      historicoPedidos.push({
-        id: child.key,
-        ...child.val(),
-      });
+      const pedido = { id: child.key, ...child.val() };
+      // Mostrar apenas pedidos finalizados/entregues no histórico
+      if (pedido.status === "entregue") {
+        historicoPedidos.push(pedido);
+      }
     });
 
     console.log(`✅ ${historicoPedidos.length} pedidos no histórico`);

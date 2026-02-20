@@ -263,106 +263,19 @@ const MenuService = {
       console.log("🔄 Disponibilidade de menu atualizada");
       AppState.menuAvailability = snapshot.val() || {};
 
-      // ✅ Verificar e remover itens indisponíveis do carrinho
+      // Remover itens indisponíveis do carrinho
       CartManager.checkAndRemoveUnavailableItems();
 
-      // Atualizar visibilidade dos cards e opções existentes
-      Object.keys(AppState.menuAvailability).forEach((key) => {
-        // Formato do KDS: categoria:nome ou categoria:nome:opcao
-        const parts = key.split(":");
-        const category = parts[0];
-        const itemName = parts[1];
-        const optionName = parts[2]; // pode ser undefined
-        const isAvailable = AppState.menuAvailability[key];
-
-        // Se tem 3 partes, é uma opção específica
-        if (parts.length === 3) {
-          // Atualizar botão de opção específica
-          const card = document.querySelector(
-            `[data-category="${category}"][data-item-name="${itemName}"]`,
-          );
-
-          if (card) {
-            const optionsContainer = card.querySelector(".options-container");
-            if (optionsContainer) {
-              const buttons = optionsContainer.querySelectorAll("button");
-              buttons.forEach((btn) => {
-                // Verificar se o texto do botão corresponde à opção
-                const btnText = btn.textContent.split("R$")[0].trim();
-                if (btnText === optionName) {
-                  console.log(
-                    `🔄 Atualizando botão de opção: ${optionName} -> ${isAvailable ? "disponível" : "indisponível"}`,
-                  );
-
-                  if (isAvailable === false) {
-                    btn.disabled = true;
-                    btn.style.opacity = "0.5";
-                    btn.style.cursor = "not-allowed";
-                    btn.style.background = "#666";
-                    btn.innerHTML = `${optionName}<span class="price-tag">Indisponível</span>`;
-                  } else {
-                    btn.disabled = false;
-                    btn.style.opacity = "1";
-                    btn.style.cursor = "pointer";
-                    btn.style.background = "";
-                    // Restaurar o preço original (teria que pegar do cardapioData)
-                  }
-                }
-              });
-            }
-          }
-        } else {
-          // É um item principal - atualizar o card inteiro
-          const fullItemName = parts.slice(1).join(":");
-          const card = document.querySelector(
-            `[data-category="${category}"][data-item-name="${fullItemName}"]`,
-          );
-
-          if (card) {
-            if (isAvailable === false) {
-              // Tornar indisponível
-              card.classList.add("unavailable");
-              card.style.opacity = "0.5";
-              card.style.pointerEvents = "none";
-              card.style.filter = "grayscale(100%)";
-
-              // Adicionar tag de indisponível se não existir
-              const info = card.querySelector(".info");
-              if (info && !card.querySelector(".unavailable-tag")) {
-                const unavailableTag = document.createElement("div");
-                unavailableTag.className = "unavailable-tag";
-                unavailableTag.textContent = "⚠️ Indisponível";
-                unavailableTag.style.cssText = `
-                  color: #f44336;
-                  font-weight: bold;
-                  font-size: 0.85rem;
-                  margin-top: 8px;
-                  background: rgba(244, 67, 54, 0.1);
-                  padding: 5px 10px;
-                  border-radius: 5px;
-                  border: 1px solid #f44336;
-                `;
-                info.appendChild(unavailableTag);
-              }
-            } else {
-              // Tornar disponível
-              card.classList.remove("unavailable");
-              card.style.opacity = "1";
-              card.style.pointerEvents = "auto";
-              card.style.filter = "none";
-
-              // Remover tag de indisponível
-              const unavailableTag = card.querySelector(".unavailable-tag");
-              if (unavailableTag) {
-                unavailableTag.remove();
-              }
-            }
-          }
-        }
-      });
+      // FIX: Re-renderizar o menu completo para garantir que todos os cards,
+      // botões e event listeners reflitam o estado correto de disponibilidade.
+      // A abordagem anterior de patch cirúrgico no DOM não re-adicionava
+      // os event listeners de clique e não restaurava o innerHTML dos botões.
+      if (AppState.cardapioData) {
+        MenuUI.render(AppState.cardapioData);
+      }
 
       console.log(
-        "✅ Cards atualizados com disponibilidade:",
+        "✅ Menu re-renderizado com disponibilidade:",
         AppState.menuAvailability,
       );
     });
@@ -689,23 +602,22 @@ const MenuUI = {
 
     const optionsContainer = DOM.create("div", "options-container");
 
+    // FIX: Verificar disponibilidade do item PRINCIPAL de forma SÍNCRONA,
+    // usando o estado já carregado antes do render.
+    const itemKey = `${category}:${item.nome}`;
+    const isItemAvailable = AppState.menuAvailability[itemKey] !== false;
+
     if (item.opcoes && Array.isArray(item.opcoes)) {
       item.opcoes.forEach((size, index) => {
         const price =
           item.precoBase && item.precoBase[index] ? item.precoBase[index] : 0;
 
         const btn = DOM.create("button", "opt-btn");
-        btn.innerHTML = `${size}<span class="price-tag">${Utils.formatPrice(price)}</span>`;
 
-        // ✅ Verificar disponibilidade da opção específica
+        // Verificar disponibilidade da opção específica
         const optionKey = `${category}:${item.nome}:${size}`;
         const isOptionAvailable =
-          AppState.menuAvailability[optionKey] !== false;
-
-        // Log para debug
-        console.log(
-          `🔍 Verificando opção: ${optionKey} = ${isOptionAvailable}`,
-        );
+          isItemAvailable && AppState.menuAvailability[optionKey] !== false;
 
         if (!isOptionAvailable) {
           btn.disabled = true;
@@ -714,6 +626,7 @@ const MenuUI = {
           btn.style.background = "#666";
           btn.innerHTML = `${size}<span class="price-tag">Indisponível</span>`;
         } else {
+          btn.innerHTML = `${size}<span class="price-tag">${Utils.formatPrice(price)}</span>`;
           btn.addEventListener("click", () =>
             OrderFlow.start(item, category, size, price),
           );
@@ -726,36 +639,32 @@ const MenuUI = {
     info.appendChild(textDiv);
     info.appendChild(optionsContainer);
 
-    card.appendChild(img);
-    card.appendChild(info);
-
-    // Verificar disponibilidade após criar o card
-    this.checkItemAvailability(card, category, item.nome);
-
-    return card;
-  },
-
-  async checkItemAvailability(card, category, itemName) {
-    const isAvailable = await MenuService.checkAvailability(category, itemName);
-
-    if (!isAvailable) {
+    // FIX: Aplicar estado de indisponibilidade do item PRINCIPAL de forma SÍNCRONA.
+    if (!isItemAvailable) {
       card.classList.add("unavailable");
       card.style.opacity = "0.5";
       card.style.pointerEvents = "none";
+      card.style.filter = "grayscale(80%)";
 
-      const info = card.querySelector(".info");
-      if (info) {
-        const unavailableTag = DOM.create("div", "unavailable-tag");
-        unavailableTag.textContent = "⚠️ Indisponível no momento";
-        unavailableTag.style.cssText = `
-          color: #f44336;
-          font-weight: bold;
-          font-size: 0.85rem;
-          margin-top: 8px;
-        `;
-        info.appendChild(unavailableTag);
-      }
+      const unavailableTag = DOM.create("div", "unavailable-tag");
+      unavailableTag.textContent = "⚠️ Indisponível";
+      unavailableTag.style.cssText = `
+        color: #f44336;
+        font-weight: bold;
+        font-size: 0.85rem;
+        margin-top: 8px;
+        background: rgba(244,67,54,0.1);
+        padding: 4px 10px;
+        border-radius: 5px;
+        border: 1px solid #f44336;
+      `;
+      info.appendChild(unavailableTag);
     }
+
+    card.appendChild(img);
+    card.appendChild(info);
+
+    return card;
   },
 
   getPlaceholderImage() {
@@ -968,10 +877,13 @@ const OrderFlow = {
     }
 
     const extras = Utils.getExtras(item);
-    if (extras.length > 0) {
+    const availableExtrasForBurger = extras.filter(
+      (e) => AppState.paidExtrasAvailability[e.nome] !== false,
+    );
+    if (availableExtrasForBurger.length > 0) {
       steps.push({
         type: "extras",
-        data: extras,
+        data: availableExtrasForBurger,
         burgerName: burgerName,
       });
     }
@@ -1022,8 +934,11 @@ const OrderFlow = {
     }
 
     const extras = Utils.getExtras(item);
-    if (extras.length > 0) {
-      steps.push({ type: "extras", data: extras });
+    const availableExtrasForStep = extras.filter(
+      (e) => AppState.paidExtrasAvailability[e.nome] !== false,
+    );
+    if (availableExtrasForStep.length > 0) {
+      steps.push({ type: "extras", data: availableExtrasForStep });
     }
 
     steps.push({ type: "observacoes" });
@@ -2215,26 +2130,49 @@ const App = {
       // Inicializar modal de boas-vindas PRIMEIRO
       WelcomeModal.init();
 
-      await initFirebase(); // FIX: aguardar Firebase antes de configurar listeners
+      await initFirebase(); // aguardar Firebase antes de configurar listeners
       AppState.cardapioData = await MenuService.loadMenu();
+
+      // FIX 1: Sincronizar preços do Firebase ANTES de renderizar
+      await MenuService.syncPricesFromFirebase();
+
+      // FIX 2: Carregar disponibilidade do Firebase ANTES de renderizar o menu,
+      // para que itens indisponíveis já apareçam corretos no primeiro carregamento.
+      if (database) {
+        const [menuSnap, ingredSnap, extrasSnap] = await Promise.all([
+          database.ref("menuAvailability").once("value"),
+          database.ref("ingredientsAvailability").once("value"),
+          database.ref("paidExtrasAvailability").once("value"),
+        ]);
+        AppState.menuAvailability = menuSnap.val() || {};
+        AppState.ingredientsAvailability = ingredSnap.val() || {};
+        AppState.paidExtrasAvailability = extrasSnap.val() || {};
+        console.log(
+          "✅ Disponibilidade carregada antes do render:",
+          AppState.menuAvailability,
+          AppState.ingredientsAvailability,
+          AppState.paidExtrasAvailability,
+        );
+      }
+
       CategoriesUI.render(Object.keys(AppState.cardapioData));
       MenuUI.render(AppState.cardapioData);
       CartUI.render();
       EventListeners.init();
 
-      // Iniciar listener de disponibilidade
+      // Listener em tempo real de disponibilidade (on/off de itens/opcoes)
+      // Faz re-render completo do menu ao receber atualizações do KDS
       MenuService.listenToAvailability();
 
-      // Iniciar listener de disponibilidade de insumos
+      // Listener em tempo real de disponibilidade de insumos e adicionais
       MenuService.listenToIngredientsAvailability();
 
-      // Iniciar listener de mudanças de preço - NEW
+      // Listener em tempo real de mudanças de preço
       MenuService.listenToPriceChanges();
 
-      // Sincronizar preços inicialmente do Firebase - NEW
-      await MenuService.syncPricesFromFirebase();
-
-      console.log("✅ Sistema de sincronização de preços ativado");
+      console.log(
+        "✅ Sistema de sincronização de preços e disponibilidade ativado",
+      );
     } catch (error) {
       MenuUI.renderError();
     }

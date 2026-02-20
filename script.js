@@ -71,10 +71,106 @@ async function loadMenuData() {
     cardapioData = {}; // Backup vazio para evitar quebra total
   }
 
-  // Iniciar listeners de disponibilidade
+  // FIX: Sincronizar preços do Firebase ANTES de exibir o cardápio,
+  // para que preços editados no sistema apareçam desde o primeiro carregamento.
+  await syncPricesFromFirebase();
+
+  // Iniciar listeners de disponibilidade em tempo real (on/off de itens e insumos)
   initAvailabilityListeners();
 
+  // Iniciar listener de preços em tempo real (via nó "cardapio" no Firebase)
+  listenToPriceChanges();
+
   showStartScreen();
+}
+
+// ===============================================
+// Sincronização de Preços com Firebase (KDS → Totem)
+// ===============================================
+
+async function syncPricesFromFirebase() {
+  if (!db) {
+    console.warn("⚠️ Firebase não disponível - preços do JSON serão usados");
+    return;
+  }
+
+  try {
+    const snapshot = await db.ref("cardapio").once("value");
+    const firebaseMenu = snapshot.val();
+
+    if (!firebaseMenu) {
+      console.log("ℹ️ Nó 'cardapio' vazio no Firebase - usando preços do JSON");
+      return;
+    }
+
+    let updated = 0;
+    for (const [category, items] of Object.entries(firebaseMenu)) {
+      if (cardapioData[category] && Array.isArray(items)) {
+        items.forEach((firebaseItem, index) => {
+          const localItem = cardapioData[category][index];
+          if (
+            localItem &&
+            firebaseItem &&
+            firebaseItem.precoBase !== undefined
+          ) {
+            localItem.precoBase = firebaseItem.precoBase;
+            updated++;
+          }
+        });
+      }
+    }
+
+    if (updated > 0) {
+      console.log(
+        `✅ Preços sincronizados do Firebase: ${updated} item(s) atualizado(s)`,
+      );
+    } else {
+      console.log("ℹ️ Firebase não tem preços diferentes do JSON");
+    }
+  } catch (error) {
+    console.error("❌ Erro ao sincronizar preços do Firebase:", error);
+  }
+}
+
+function listenToPriceChanges() {
+  if (!db) return;
+
+  db.ref("cardapio").on("value", (snapshot) => {
+    const firebaseMenu = snapshot.val();
+    if (!firebaseMenu || !cardapioData) return;
+
+    let pricesUpdated = false;
+
+    for (const [category, items] of Object.entries(firebaseMenu)) {
+      if (cardapioData[category] && Array.isArray(items)) {
+        items.forEach((firebaseItem, index) => {
+          const localItem = cardapioData[category][index];
+          if (
+            localItem &&
+            firebaseItem &&
+            firebaseItem.precoBase !== undefined
+          ) {
+            const oldPrice = JSON.stringify(localItem.precoBase);
+            const newPrice = JSON.stringify(firebaseItem.precoBase);
+            if (oldPrice !== newPrice) {
+              localItem.precoBase = firebaseItem.precoBase;
+              pricesUpdated = true;
+            }
+          }
+        });
+      }
+    }
+
+    if (pricesUpdated) {
+      console.log(
+        "🔄 Preços atualizados pelo KDS - re-renderizando cardápio...",
+      );
+      const activeBtn = document.querySelector(".sessao-topo button.active");
+      if (currentCategory && cardapioData[currentCategory]) {
+        showCategory(currentCategory, activeBtn);
+      }
+    }
+  });
 }
 
 // ===============================================
@@ -766,26 +862,19 @@ function openPopupCustom(cat, itemIndex, optionIndex) {
     [];
 
   if (veggies.length > 0) {
-    const veggieSection = document.createElement("div");
-    veggieSection.innerHTML = "<h4>Remover vegetais:</h4>";
-    veggies.forEach((veg) => {
-      const isOff = false; // Força o ingrediente a estar sempre disponível
-      const label = document.createElement("label");
-      if (isOff) label.style.opacity = "0.5";
-
-      label.innerHTML = `
-        <input type="checkbox" data-type="remove" value="${veg}" ${
-          isOff ? "disabled" : "checked"
-        }> 
-        ${veg} ${
-          isOff
-            ? '<span style="color:red; font-weight:bold; font-size:12px;"> (EM FALTA)</span>'
-            : ""
-        }
-      `;
-      veggieSection.appendChild(label);
-    });
-    questionDiv.appendChild(veggieSection);
+    const availableVeggies = veggies.filter(
+      (veg) => !isIngredientUnavailable(veg),
+    );
+    if (availableVeggies.length > 0) {
+      const veggieSection = document.createElement("div");
+      veggieSection.innerHTML = "<h4>Remover vegetais:</h4>";
+      availableVeggies.forEach((veg) => {
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" data-type="remove" value="${veg}" checked> ${veg}`;
+        veggieSection.appendChild(label);
+      });
+      questionDiv.appendChild(veggieSection);
+    }
   }
 
   // --- SEÇÃO DE OUTROS INGREDIENTES (Remoção) ---
@@ -794,24 +883,15 @@ function openPopupCustom(cat, itemIndex, optionIndex) {
     (ing) => !veggies.includes(ing),
   );
 
-  if (ingredientsForRemoval.length > 0) {
+  const availableIngredientsForRemoval = ingredientsForRemoval.filter(
+    (ing) => !isIngredientUnavailable(ing),
+  );
+  if (availableIngredientsForRemoval.length > 0) {
     const ingSection = document.createElement("div");
     ingSection.innerHTML = "<h4>Remover outros ingredientes:</h4>";
-    ingredientsForRemoval.forEach((ing) => {
-      const isOff = isIngredientUnavailable(ing); // VERIFICAÇÃO DE INSUMO
+    availableIngredientsForRemoval.forEach((ing) => {
       const label = document.createElement("label");
-      if (isOff) label.style.opacity = "0.5";
-
-      label.innerHTML = `
-        <input type="checkbox" data-type="remove" value="${ing}" ${
-          isOff ? "disabled" : "checked"
-        }> 
-        ${ing} ${
-          isOff
-            ? '<span style="color:red; font-weight:bold; font-size:12px;"> (EM FALTA)</span>'
-            : ""
-        }
-      `;
+      label.innerHTML = `<input type="checkbox" data-type="remove" value="${ing}" checked> ${ing}`;
       ingSection.appendChild(label);
     });
     questionDiv.appendChild(ingSection);
@@ -819,26 +899,17 @@ function openPopupCustom(cat, itemIndex, optionIndex) {
 
   // --- SEÇÃO DE ADICIONAIS (Extras Pagos) ---
   const extras = item.paidExtras || item.adicionais || [];
-  if (extras.length > 0) {
+  const availableExtras = extras.filter(
+    (extra) => !isPaidExtraUnavailable(extra.nome),
+  );
+  if (availableExtras.length > 0) {
     const extraSection = document.createElement("div");
     extraSection.innerHTML = "<h4>Adicionais:</h4>";
-    extras.forEach((extra) => {
-      const isOff = isPaidExtraUnavailable(extra.nome); // VERIFICAÇÃO DE ADICIONAL PAGO
+    availableExtras.forEach((extra) => {
       const precoText =
         extra.preco > 0 ? `(+R$ ${extra.preco.toFixed(2)})` : "(Grátis)";
       const label = document.createElement("label");
-      if (isOff) label.style.opacity = "0.5";
-
-      label.innerHTML = `
-        <input type="checkbox" data-type="extra" data-preco="${
-          extra.preco
-        }" value="${extra.nome}" ${isOff ? "disabled" : ""}> 
-        ${extra.nome} ${precoText} ${
-          isOff
-            ? '<span style="color:red; font-weight:bold; font-size:12px;"> (EM FALTA)</span>'
-            : ""
-        }
-      `;
+      label.innerHTML = `<input type="checkbox" data-type="extra" data-preco="${extra.preco}" value="${extra.nome}"> ${extra.nome} ${precoText}`;
       extraSection.appendChild(label);
     });
     questionDiv.appendChild(extraSection);
@@ -871,19 +942,15 @@ function renderComboBurgerModal() {
   if (extras.length > 0) {
     const extraSection = document.createElement("div");
     extraSection.innerHTML = "<h4>Adicionais Pagos (por item):</h4>";
-    extras.forEach((extra) => {
-      const isOff = isPaidExtraUnavailable(extra.nome);
-      const precoText =
-        extra.preco > 0 ? `(+R$ ${extra.preco.toFixed(2)})` : "(Grátis)";
-      const label = document.createElement("label");
-      if (isOff) label.style.opacity = "0.5";
-
-      label.innerHTML = `
-        <input type="checkbox" data-type="extra-burger" data-preco="${extra.preco}" value="${extra.nome}" ${isOff ? "disabled" : ""}> 
-        ${extra.nome} ${precoText} ${isOff ? '<span style="color:red; font-weight:bold; font-size:12px;"> (EM FALTA)</span>' : ""}
-      `;
-      extraSection.appendChild(label);
-    });
+    extras
+      .filter((extra) => !isPaidExtraUnavailable(extra.nome))
+      .forEach((extra) => {
+        const precoText =
+          extra.preco > 0 ? `(+R$ ${extra.preco.toFixed(2)})` : "(Grátis)";
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" data-type="extra-burger" data-preco="${extra.preco}" value="${extra.nome}"> ${extra.nome} ${precoText}`;
+        extraSection.appendChild(label);
+      });
     questionDiv.appendChild(extraSection);
   }
 
@@ -907,12 +974,13 @@ function renderBurgerCustomizationSection(container, item, burgerName) {
     burgerName,
   );
 
-  if (vegetables && vegetables.length > 0) {
+  const availableVegetables = (vegetables || []).filter(
+    (veg) => !isIngredientUnavailable(veg),
+  );
+  if (availableVegetables.length > 0) {
     const veggieSection = document.createElement("div");
     veggieSection.innerHTML = "<h4>Remover vegetais:</h4>";
-    vegetables.forEach((veg) => {
-      // Ignora o check de indisponibilidade para vegetais nos combos
-      const isOff = false;
+    availableVegetables.forEach((veg) => {
       const label = document.createElement("label");
       label.innerHTML = `<input type="checkbox" data-type="remove-veg" value="${veg}" checked> ${veg}`;
       veggieSection.appendChild(label);
@@ -924,19 +992,15 @@ function renderBurgerCustomizationSection(container, item, burgerName) {
     (ing) => !vegetables.includes(ing),
   );
 
-  if (otherIngredients && otherIngredients.length > 0) {
+  const availableOtherIngredients = (otherIngredients || []).filter(
+    (ing) => !isIngredientUnavailable(ing),
+  );
+  if (availableOtherIngredients.length > 0) {
     const ingSection = document.createElement("div");
     ingSection.innerHTML = "<h4>Remover outros ingredientes:</h4>";
-    otherIngredients.forEach((ing) => {
-      // Verifica se este ingrediente específico está em falta no KDS
-      const isOff = isIngredientUnavailable(ing);
+    availableOtherIngredients.forEach((ing) => {
       const label = document.createElement("label");
-      if (isOff) label.style.opacity = "0.5";
-
-      label.innerHTML = `
-        <input type="checkbox" data-type="remove-ing" value="${ing}" ${isOff ? "disabled" : "checked"}> 
-        ${ing} ${isOff ? '<span style="color:red; font-weight:bold; font-size:12px;"> (EM FALTA)</span>' : ""}
-      `;
+      label.innerHTML = `<input type="checkbox" data-type="remove-ing" value="${ing}" checked> ${ing}`;
       ingSection.appendChild(label);
     });
     container.appendChild(ingSection);

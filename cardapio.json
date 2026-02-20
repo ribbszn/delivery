@@ -23,23 +23,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -59,23 +64,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -100,23 +110,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -143,23 +158,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -181,23 +201,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -224,23 +249,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -262,23 +292,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     }
@@ -301,23 +336,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -332,23 +372,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ],
       "simplesIngredients": [
@@ -371,23 +416,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ],
       "simplesIngredients": ["Calabresa", "Queijo", "Cebola", "Molho artesanal"]
@@ -411,23 +461,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     }
@@ -489,23 +544,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -561,23 +621,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     },
@@ -625,23 +690,28 @@
       "paidExtras": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
           "nome": "Carne Smash",
-          "preco": 5
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ]
     }
@@ -662,23 +732,28 @@
       "adicionais": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
-          "nome": "Carne",
-          "preco": 5
+          "nome": "Carne Smash",
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ],
       "img": "./img/rtriplo.jpg",
@@ -712,23 +787,28 @@
       "adicionais": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
-          "nome": "Carne",
-          "preco": 5
+          "nome": "Carne Smash",
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ],
       "img": "./img/3sms.jpg",
@@ -750,23 +830,28 @@
       "adicionais": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
-          "nome": "Carne",
-          "preco": 5
+          "nome": "Carne Smash",
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ],
       "img": "./img/cremoso.png",
@@ -788,19 +873,23 @@
       "adicionais": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
-          "nome": "Carne",
-          "preco": 5
+          "nome": "Carne Smash",
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         }
       ],
       "img": "./img/calabreso2.png",
@@ -821,23 +910,28 @@
       "adicionais": [
         {
           "nome": "Bacon",
-          "preco": 4
+          "preco": 4,
+          "disponivel": true
         },
         {
-          "nome": "Carne",
-          "preco": 5
+          "nome": "Carne Smash",
+          "preco": 5,
+          "disponivel": true
         },
         {
           "nome": "Cream Cheese",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         },
         {
           "nome": "Ovo",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Calabresa",
-          "preco": 3
+          "preco": 3,
+          "disponivel": true
         }
       ],
       "img": "./img/eggy.jpg",
@@ -853,11 +947,13 @@
       "adicionais": [
         {
           "nome": "Bacon",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         },
         {
           "nome": "Cheddar",
-          "preco": 2
+          "preco": 2,
+          "disponivel": true
         }
       ]
     }

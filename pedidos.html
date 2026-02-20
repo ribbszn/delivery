@@ -2,255 +2,308 @@
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
-    <title>RibbsZn - Cardápio Digital</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ribbs ZN - Cardápio Digital</title>
     <link rel="stylesheet" href="zap.css" />
   </head>
   <body>
-    <div
-      id="backdrop"
-      class="backdrop"
-      onclick="
-        closeModal('popupCustom');
-        closeCaldaPopup();
-        closeModal('modalModoEntrega');
-        closeModal('modalDados');
-        closeImagePopup();
-      "
-    ></div>
-
+    <!-- Header -->
     <header>
-      <div class="header-content">
-        <div class="logo-area">
-          <span class="logo-text">RibbsZn</span>
-        </div>
+      <div class="header-top">
+        <h2 class="logo">RIBBS ZN 🔥</h2>
+        <button class="cart-btn" data-action="toggle-sidebar">
+          CARRINHO (<span data-cart-count>0</span>)
+        </button>
+      </div>
+      <div class="search-container">
+        <input
+          type="text"
+          data-search-input
+          placeholder="Clique aqui para buscar no cardápio..."
+          aria-label="Buscar no cardápio"
+        />
       </div>
     </header>
 
-    <div class="sessao-topo" id="sessao-topo">
-      <button class="active" onclick="showCategory('Promoções', this)">
-        Promoções
-      </button>
-      <button onclick="showCategory('Clones', this)">Clones</button>
-      <button onclick="showCategory('Artesanais', this)">Artesanais</button>
-      <button onclick="showCategory('Costela Bovina', this)">Combos</button>
-      <button onclick="showCategory('Batata Frita', this)">Batatas</button>
-      <button onclick="showCategory('Bebidas', this)">Bebidas</button>
+    <!-- Carrossel de Categorias -->
+    <nav class="categories-carousel" aria-label="Categorias do cardápio">
+      <div class="categories-container" data-categories-container></div>
+    </nav>
+
+    <!-- Overlay -->
+    <div class="overlay" data-overlay></div>
+
+    <!-- Modal de Boas-vindas -->
+    <div class="welcome-modal" id="welcome-modal">
+      <div class="welcome-modal-content">
+        <div class="welcome-logo">
+          <img src="img/logo800.png" alt="RIBBS ZN Logo" />
+        </div>
+        <h2>Bem-vindo ao RIBBS ZN!</h2>
+        <div class="welcome-text">
+          <p>
+            Faça seu pedido aqui, e ele será enviado
+            <strong>diretamente para nossa loja</strong>.
+          </p>
+          <div class="welcome-features">
+            <div class="feature-item">
+              <span class="feature-icon">🍔</span>
+              <span>Escolha seus produtos</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🎨</span>
+              <span>Personalize como quiser</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🛵</span>
+              <span>Entrega ou Retirada</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">📱</span>
+              <span>Peça do conforto de casa</span>
+            </div>
+          </div>
+          <p class="welcome-cta">Bora pedir? 😋</p>
+        </div>
+        <button class="btn-welcome-close" id="btn-welcome-close">
+          CLIQUE AQUI PARA PEDIR!
+        </button>
+      </div>
     </div>
 
-    <div class="cardapio" id="cardapio"></div>
-
-    <div id="footerCart">
-      <div class="cart-header" onclick="toggleCart()">
-        <span id="cartIcon">🛒</span>
-        <span id="cartCount">0</span>
-      </div>
-
-      <div id="cartItemsContainer">
-        <div id="cartItems"></div>
-
-        <div class="cart-actions">
-          <div class="total-row">
-            <span>Total:</span>
-            <span id="cartTotalDisplay">R$ 0,00</span>
-          </div>
-          <button id="btnFinalizar" onclick="iniciarCheckout()">
-            Finalizar Pedido ➔
-          </button>
-          <button id="btnLimpar" onclick="clearCart()">Limpar Tudo</button>
+    <!-- Modal de Personalização -->
+    <div class="modal" data-modal role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <button class="btn-close-modal" data-close-modal aria-label="Fechar">
+          &times;
+        </button>
+        <div class="modal-header">
+          <h3 data-modal-title>Personalizar</h3>
+          <div class="progress-dots" data-progress-dots></div>
+        </div>
+        <div class="step-body" data-modal-body></div>
+        <div class="modal-footer">
+          <button class="btn-back" data-btn-back>Voltar</button>
+          <button class="btn-next" data-btn-next>Próximo</button>
         </div>
       </div>
     </div>
 
-    <div id="popupCustom" class="popup">
-      <h3 id="popupCustomTitle" class="popup-title">Personalizar</h3>
-      <div id="popupQuestion"></div>
-      <button class="btn-primary" onclick="confirmSimpleCustom()">
-        Confirmar e Adicionar
-      </button>
-      <button class="btn-cancel" onclick="closeModal('popupCustom')">
-        Cancelar
-      </button>
-    </div>
-
-    <div id="popupCalda" class="popup">
-      <h3 class="popup-title">Escolha a Calda:</h3>
-      <button class="btn-primary" onclick="selectCalda('Morango')">
-        Morango
-      </button>
-      <button class="btn-primary btn-spaced" onclick="selectCalda('Chocolate')">
-        Chocolate
-      </button>
-      <button class="btn-primary btn-spaced" onclick="selectCalda('Sem Calda')">
-        Sem Calda
-      </button>
-      <button class="btn-cancel btn-spaced-more" onclick="closeCaldaPopup()">
-        Voltar
-      </button>
-    </div>
-
-    <div id="modalModoEntrega" class="popup">
-      <h3>Como deseja receber?</h3>
-      <button class="btn-primary" onclick="selecionarModo('retirada')">
-        Retirada (Balcão)
-      </button>
-      <button
-        class="btn-primary btn-spaced"
-        onclick="selecionarModo('entrega')"
-      >
-        Delivery (Entrega)
-      </button>
-    </div>
-
-    <div id="modalDados" class="popup">
-      <button
-        class="btn-close-modal"
-        onclick="closeModal('modalDados')"
-        aria-label="Fechar Modal"
-      >
-        &times;
-      </button>
-      <h3>Finalizar Pedido</h3>
-      <form onsubmit="enviarZap(event)">
-        <!-- Seção Dados Pessoais -->
-        <section class="form-section">
-          <h4>Dados Pessoais</h4>
-          <div class="input-group">
-            <label for="inputNome"
-              >Seu Nome <span class="required">*</span></label
-            >
-            <input
-              type="text"
-              id="inputNome"
-              name="nome"
-              placeholder="Digite seu nome completo"
-              required
-              aria-required="true"
-            />
-          </div>
-        </section>
-
-        <!-- Seção Entrega (Condicional) -->
-        <section id="areaEntrega" class="form-section hidden">
-          <h4>Detalhes da Entrega</h4>
-          <div class="input-group">
-            <label for="inputEndereco"
-              >Endereço Completo <span class="required">*</span></label
-            >
-            <input
-              type="text"
-              id="inputEndereco"
-              name="endereco"
-              placeholder="Rua, Nº, Complemento"
-              required
-              aria-required="true"
-            />
-          </div>
-          <div class="input-group">
-            <label for="selectBairro"
-              >Bairro <span class="required">*</span></label
-            >
-            <select
-              id="selectBairro"
-              name="bairro"
-              required
-              onchange="atualizarTaxaEntrega()"
-              aria-required="true"
-            >
-              <option value="" disabled selected>Selecione o bairro</option>
-              <option value="Campo Grande" data-taxa="0">
-                Campo Grande (Taxa sob consulta)
-              </option>
-              <option value="Aflitos" data-taxa="6">Aflitos (R$ 6,00)</option>
-              <option value="Arruda" data-taxa="5">Arruda (R$ 5,00)</option>
-              <option value="Água Fria" data-taxa="7">
-                Água Fria (R$ 7,00)
-              </option>
-              <option value="Encruzilhada" data-taxa="5">
-                Encruzilhada (R$ 5,00)
-              </option>
-              <option value="Jardim Brasil" data-taxa="6">
-                Jardim Brasil (R$ 6,00)
-              </option>
-              <option value="Peixinhos" data-taxa="5">
-                Peixinhos (R$ 5,00)
-              </option>
-              <option value="Salgadinho" data-taxa="5">
-                Salgadinho (R$ 5,00)
-              </option>
-              <option value="Sítio Novo" data-taxa="3">
-                Sítio Novo (R$ 3,00)
-              </option>
-            </select>
-          </div>
-        </section>
-
-        <!-- Seção Pagamento -->
-        <section id="secaoPagamento" class="form-section payment-section">
-          <h4>Forma de Pagamento <span class="required">*</span></h4>
-          <div class="input-group">
-            <select
-              id="selectPagamento"
-              name="pagamento"
-              onchange="
-                gerenciarExibicaoPix();
-                verificarTroco();
-              "
-              required
-              aria-required="true"
-            >
-              <option value="" disabled selected>Selecione uma opção</option>
-              <option value="Pix">Pix</option>
-              <option value="Cartão">Cartão (Maquininha)</option>
-              <option value="Dinheiro">Dinheiro</option>
-            </select>
-          </div>
-
-          <div id="areaTroco" class="troco-area hidden">
-            <label for="inputTroco">Valor para Troco</label>
-            <input
-              type="number"
-              id="inputTroco"
-              name="troco"
-              placeholder="Ex: 50.00 (maior ou igual ao total)"
-              min="0"
-              step="0.01"
-            />
-          </div>
-        </section>
-
-        <!-- Resumo -->
-        <section class="resumo-final">
-          <h4>Resumo do Pedido</h4>
-          <p>Subtotal: <span id="resumoSubtotal">R$ 0,00</span></p>
-          <p id="linhaTaxa">
-            Taxa de Entrega: <span id="resumoTaxa">R$ 0,00</span>
-          </p>
-          <p>Desconto: <span id="resumoDesconto">R$ 0,00</span></p>
-          <p class="total-big">Total: <span id="resumoTotal">R$ 0,00</span></p>
-        </section>
-
-        <button type="submit" class="btn-whatsapp" id="btnEnviarZap">
-          Enviar para o WhatsApp 📲
+    <!-- ============================================ -->
+    <!-- MODAL: CAMPO GRANDE -->
+    <!-- ============================================ -->
+    <div class="modal-campo-grande" id="modal-campo-grande">
+      <div class="modal-campo-grande-content">
+        <div class="modal-campo-grande-icon">📍</div>
+        <h3>Taxa de Entrega</h3>
+        <p>
+          Para este bairro, calculamos o valor da entrega com base na distância
+          da loja.
+        </p>
+        <button class="btn-campo-grande-ok" id="btn-campo-grande-ok">
+          Clique aqui para continuar
         </button>
-      </form>
+      </div>
     </div>
 
-    <div id="popupImage" class="popup popup-image">
-      <img
-        id="enlargedImage"
-        src=""
-        class="enlarged-image"
-        onclick="closeImagePopup()"
-      />
-    </div>
+    <!-- ============================================ -->
+    <!-- SIDEBAR 1: CARRINHO -->
+    <!-- ============================================ -->
+    <aside class="sidebar" data-sidebar role="complementary">
+      <div class="sidebar-header">
+        <h2>Meu Pedido</h2>
+        <button
+          class="btn-close-sidebar"
+          data-close-sidebar
+          aria-label="Fechar carrinho"
+        >
+          &times;
+        </button>
+      </div>
 
-    <audio id="soundClick" src="beep.mp3"></audio>
-    <audio id="soundAdd" src="beep.mp3"></audio>
+      <div class="cart-items" data-cart-items></div>
 
-    <script src="zap.js"></script>
+      <div class="cart-footer">
+        <div class="cart-total-bar">
+          <span>Total:</span>
+          <span data-total-cart>R$ 0,00</span>
+        </div>
+        <button class="btn-finalizar-pedido" id="btn-finalizar-pedido">
+          FINALIZAR PEDIDO &#8594;
+        </button>
+      </div>
+    </aside>
+
+    <!-- ============================================ -->
+    <!-- SIDEBAR 2: CHECKOUT -->
+    <!-- ============================================ -->
+    <aside
+      class="sidebar sidebar-checkout"
+      id="sidebar-checkout"
+      role="complementary"
+    >
+      <div class="sidebar-header">
+        <button
+          class="btn-back-to-cart"
+          id="btn-back-to-cart"
+          aria-label="Voltar"
+        >
+          &#8592; Voltar
+        </button>
+        <h2>Finalizar</h2>
+        <button
+          class="btn-close-sidebar"
+          id="btn-close-checkout"
+          aria-label="Fechar"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div class="checkout-scroll">
+        <form class="checkout-form" data-checkout-form>
+          <!-- Tipo de Pedido -->
+          <fieldset>
+            <legend class="form-label">🛵 Tipo de Pedido</legend>
+            <div class="delivery-toggle">
+              <button type="button" data-delivery-type="delivery">
+                Entrega
+              </button>
+              <button type="button" data-delivery-type="pickup" class="active">
+                Retirada
+              </button>
+            </div>
+          </fieldset>
+
+          <!-- Nome -->
+          <input
+            type="text"
+            name="customerName"
+            placeholder="Digite Aqui Seu Nome *"
+            class="form-input"
+            required
+          />
+
+          <!-- Campos de Entrega -->
+          <div data-delivery-fields style="display: none">
+            <fieldset>
+              <legend class="form-label">📍 Bairro de Entrega</legend>
+              <select
+                name="neighborhood"
+                class="form-input"
+                data-neighborhood-select
+              >
+                <option value="">Selecione o bairro...</option>
+                <option value="agua-fria" data-fee="6">
+                  Água Fria - R$ 6,00
+                </option>
+                <option value="arruda" data-fee="5">Arruda - R$ 5,00</option>
+                <option value="cajueiro" data-fee="6">
+                  Cajueiro - R$ 6,00
+                </option>
+                <option value="campo-grande" data-fee="0">
+                  Campo Grande - Taxa a combinar
+                </option>
+                <option value="campina-barreto" data-fee="4">
+                  Campina do Barreto - R$ 4,00
+                </option>
+                <option value="encruzilhada" data-fee="5">
+                  Encruzilhada - R$ 5,00
+                </option>
+                <option value="hipodromo" data-fee="6">
+                  Hipódromo - R$ 6,00
+                </option>
+                <option value="peixinhos" data-fee="5">
+                  Peixinhos - R$ 5,00
+                </option>
+                <option value="salgadinho" data-fee="5">
+                  Salgadinho - R$ 5,00
+                </option>
+                <option value="sitio-novo" data-fee="3">
+                  Sítio Novo - R$ 3,00
+                </option>
+              </select>
+            </fieldset>
+
+            <input
+              type="text"
+              name="street"
+              placeholder="Endereço (Rua/Av) *"
+              class="form-input"
+              data-delivery-required
+            />
+            <input
+              type="text"
+              name="houseNumber"
+              placeholder="Nº da Casa *"
+              class="form-input"
+              data-delivery-required
+            />
+            <input
+              type="text"
+              name="complement"
+              placeholder="Complemento (Apto, Bloco, etc)"
+              class="form-input"
+            />
+
+            <div
+              class="delivery-fee-display"
+              data-delivery-fee-display
+              style="display: none"
+            >
+              <span>Taxa de Entrega:</span>
+              <span data-delivery-fee-value>R$ 0,00</span>
+            </div>
+          </div>
+
+          <!-- Forma de Pagamento -->
+          <fieldset>
+            <legend class="form-label">💳 Forma de Pagamento</legend>
+            <select name="paymentMethod" class="form-input" required>
+              <option value="">Selecione...</option>
+              <option value="pix">💚 PIX</option>
+              <option value="dinheiro">💵 Dinheiro</option>
+              <option value="debito">💳 Cartão de Débito</option>
+              <option value="credito">💳 Cartão de Crédito</option>
+            </select>
+          </fieldset>
+
+          <!-- Troco -->
+          <div data-change-field style="display: none">
+            <input
+              type="text"
+              name="changeFor"
+              placeholder="Quanto você vai pagar?"
+              class="form-input"
+            />
+          </div>
+
+          <!-- Total -->
+          <div class="total-display">
+            <span>Total:</span>
+            <span data-total-cart>R$ 0,00</span>
+          </div>
+
+          <!-- Botão Finalizar -->
+          <button type="submit" class="btn-checkout">ENVIAR PEDIDO</button>
+        </form>
+      </div>
+    </aside>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Container do Menu -->
+    <main class="container" data-menu-container></main>
+
+    <!-- ================================================================
+         SCRIPTS - SEM AUTENTICAÇÃO (INDEX/DELIVERY)
+         ================================================================ -->
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <!-- App Script -->
+    <script src="app.js"></script>
   </body>
 </html>

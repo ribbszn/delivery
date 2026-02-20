@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <title>Admin - Ribbs ZN</title>
+    <link rel="stylesheet" href="admin.css" />
+
+    <!-- Firebase v9 (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <!-- ============================================ -->
+    <!-- TELA DE LOGIN -->
+    <!-- ============================================ -->
+    <div id="login-screen" class="login-container">
+      <div class="login-box">
+        <div class="login-logo">
+          <h1>🍔 RIBBS ZN</h1>
+          <h2>Admin</h2>
+        </div>
+
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label for="pin-input">PIN de Acesso (6 dígitos)</label>
+            <input
+              type="password"
+              id="pin-input"
+              maxlength="6"
+              pattern="\d{6}"
+              placeholder="••••••"
+              required
+              autocomplete="off"
+            />
+          </div>
+
+          <button type="submit" class="btn-login">
+            <span id="login-btn-text">Entrar</span>
+            <span id="login-spinner" class="spinner" style="display: none"
+              >⏳</span
+            >
+          </button>
+
+          <div id="login-error" class="error-message"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- PAINEL ADMINISTRATIVO -->
+    <!-- ============================================ -->
+    <div id="admin-panel" style="display: none">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h2>🍔 RIBBS ZN</h2>
+          <p>Admin Panel</p>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-btn active" data-section="inicio">
+            🏠 Início
+          </button>
+          <button class="nav-btn" data-section="cardapio">📋 Cardápio</button>
+          <button class="nav-btn" data-section="insumos">📦 Insumos</button>
+          <button class="nav-btn" data-section="dashboard">📊 Dashboard</button>
+          <button class="nav-btn" data-section="pedidos">🛒 Pedidos</button>
+        </nav>
+
+        <button class="btn-logout" onclick="handleLogout()">🚪 Sair</button>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- ============================================ -->
+        <!-- SEÇÃO: INÍCIO (PEDIDOS ATIVOS) -->
+        <!-- ============================================ -->
+        <section id="section-inicio" class="content-section active">
+          <header class="section-header">
+            <h1>Início</h1>
+            <div class="header-controls">
+              <!-- Toggle Loja Aberta/Fechada -->
+              <div class="store-status-toggle">
+                <label class="toggle-label">
+                  <input type="checkbox" id="store-toggle" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="store-status-text" id="store-status-text">
+                  🟢 Loja Aberta
+                </span>
+              </div>
+
+              <button
+                class="btn-danger hidden"
+                onclick="excluirTodosPedidosAtivos()"
+                id="btn-excluir-todos"
+              >
+                🗑️ Excluir Pedidos Ativos
+              </button>
+              <button class="btn-refresh" onclick="refreshInicioData()">
+                🔄 Atualizar
+              </button>
+            </div>
+          </header>
+
+          <!-- Pedidos Ativos (Minimizável) -->
+          <div class="pedidos-ativos-section">
+            <div class="pedidos-ativos-header" onclick="togglePedidosAtivos()">
+              <h2>🔔 Pedidos Ativos</h2>
+              <span class="pedidos-ativos-toggle">▼</span>
+            </div>
+
+            <div
+              id="pedidos-ativos-content"
+              class="pedidos-ativos-content collapsed"
+            >
+              <div id="pedidos-ativos-container" class="pedidos-grid">
+                <div class="loading">Carregando pedidos ativos...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Histórico de Hoje -->
+          <div class="historico-section">
+            <div class="historico-header" onclick="toggleHistorico()">
+              <h2>📜 Histórico de Hoje</h2>
+              <span class="historico-toggle">▼</span>
+            </div>
+
+            <div id="historico-content" class="historico-content collapsed">
+              <div class="historico-filters">
+                <input
+                  type="date"
+                  id="filter-historico-date"
+                  onchange="loadHistoricoData()"
+                />
+                <input
+                  type="text"
+                  id="search-historico"
+                  placeholder="🔍 Buscar por nome/mesa..."
+                  oninput="filterHistorico()"
+                />
+              </div>
+
+              <div id="historico-container" class="pedidos-grid">
+                <div class="loading">Carregando histórico...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================ -->
+        <!-- SEÇÃO: EDITOR DE CARDÁPIO -->
+        <!-- ============================================ -->
+        <section id="section-cardapio" class="content-section">
+          <header class="section-header">
+            <h1>Editor de Cardápio</h1>
+            <button class="btn-refresh" onclick="refreshMenuData()">
+              🔄 Atualizar
+            </button>
+          </header>
+
+          <div class="cardapio-filters">
+            <select id="filter-categoria" onchange="filterMenuByCategory()">
+              <option value="all">Todas as Categorias</option>
+            </select>
+
+            <input
+              type="text"
+              id="search-menu"
+              placeholder="🔍 Buscar item..."
+              oninput="searchMenuItems()"
+            />
+          </div>
+
+          <div id="cardapio-container" class="cardapio-grid">
+            <!-- Cards do cardápio serão inseridos aqui via JS -->
+            <div class="loading">Carregando cardápio...</div>
+          </div>
+        </section>
+
+        <!-- ============================================ -->
+        <!-- SEÇÃO: GESTÃO DE INSUMOS -->
+        <!-- ============================================ -->
+        <section id="section-insumos" class="content-section">
+          <header class="section-header">
+            <h1>Gestão de Insumos</h1>
+            <button class="btn-refresh" onclick="refreshInsumosData()">
+              🔄 Atualizar
+            </button>
+          </header>
+
+          <p class="section-description">
+            Controle global de ingredientes e adicionais. Ao desativar um insumo
+            aqui, ele ficará indisponível em <strong>todos os produtos</strong>.
+          </p>
+
+          <!-- Adicionais Pagos Globais -->
+          <div class="insumos-card">
+            <div class="insumos-card-header">
+              <h2>🍔 Adicionais Pagos (Global)</h2>
+              <p class="insumos-subtitle">
+                Bacon, Carne Extra, Ovo, Cream Cheese, Calabresa
+              </p>
+            </div>
+            <div id="global-paid-extras-container" class="insumos-grid">
+              <div class="loading">Carregando...</div>
+            </div>
+          </div>
+
+          <!-- Ingredientes Padrão Globais -->
+          <div class="insumos-card">
+            <div class="insumos-card-header">
+              <h2>🥬 Ingredientes Padrão (Global)</h2>
+              <p class="insumos-subtitle">
+                Alface, Tomate, Cebola, Molho, Cheddar
+              </p>
+            </div>
+            <div id="global-ingredients-container" class="insumos-grid">
+              <div class="loading">Carregando...</div>
+            </div>
+          </div>
+
+          <!-- Caldas de Milk Shake -->
+          <div class="insumos-card">
+            <div class="insumos-card-header">
+              <h2>🍫 Caldas de Milk Shake</h2>
+              <p class="insumos-subtitle">Morango, Chocolate</p>
+            </div>
+            <div id="caldas-container" class="insumos-grid">
+              <div class="loading">Carregando...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================ -->
+        <!-- SEÇÃO: DASHBOARD FINANCEIRO -->
+        <!-- ============================================ -->
+        <section id="section-dashboard" class="content-section">
+          <header class="section-header">
+            <h1>Dashboard Financeiro</h1>
+            <div class="date-filter">
+              <input
+                type="date"
+                id="filter-date"
+                onchange="loadDashboardData()"
+              />
+            </div>
+          </header>
+
+          <!-- Cards de Métricas -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-icon">💰</div>
+              <div class="metric-info">
+                <p class="metric-label">Vendas Hoje</p>
+                <p class="metric-value" id="metric-vendas-hoje">R$ 0,00</p>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon">📊</div>
+              <div class="metric-info">
+                <p class="metric-label">Pedidos Hoje</p>
+                <p class="metric-value" id="metric-pedidos-hoje">0</p>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon">🎯</div>
+              <div class="metric-info">
+                <p class="metric-label">Ticket Médio</p>
+                <p class="metric-value" id="metric-ticket-medio">R$ 0,00</p>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon">⏰</div>
+              <div class="metric-info">
+                <p class="metric-label">Tempo Médio</p>
+                <p class="metric-value" id="metric-tempo-medio">0 min</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gráficos -->
+          <div class="charts-grid">
+            <div class="chart-card">
+              <h3>Vendas por Categoria</h3>
+              <canvas id="chart-categorias"></canvas>
+            </div>
+
+            <div class="chart-card">
+              <h3>Métodos de Pagamento</h3>
+              <canvas id="chart-pagamento"></canvas>
+            </div>
+          </div>
+
+          <!-- Top Produtos -->
+          <div class="chart-card">
+            <h3>Top 10 Produtos Mais Vendidos</h3>
+            <div id="top-produtos" class="top-produtos-list">
+              <!-- Lista será preenchida via JS -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================ -->
+        <!-- SEÇÃO: GESTÃO DE PEDIDOS -->
+        <!-- ============================================ -->
+        <section id="section-pedidos" class="content-section">
+          <header class="section-header">
+            <h1>Gestão de Pedidos</h1>
+            <div class="pedidos-filters">
+              <input
+                type="text"
+                id="search-pedidos"
+                placeholder="🔍 Buscar por nome/mesa..."
+                oninput="filterPedidos()"
+              />
+              <select id="filter-status" onchange="filterPedidos()">
+                <option value="all">Todos Status</option>
+                <option value="preparando">Preparando</option>
+                <option value="pronto">Pronto</option>
+                <option value="entregue">Entregue</option>
+              </select>
+            </div>
+          </header>
+
+          <div id="pedidos-container" class="pedidos-grid">
+            <!-- Cards de pedidos serão inseridos aqui via JS -->
+            <div class="loading">Carregando pedidos...</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODAL: EDITAR ITEM DO CARDÁPIO -->
+    <!-- ============================================ -->
+    <div id="modal-edit-item" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-item-title">Editar Item</h2>
+          <button class="btn-close" onclick="closeEditModal()">✕</button>
+        </div>
+
+        <div class="modal-body" id="modal-edit-body">
+          <!-- Conteúdo será preenchido dinamicamente -->
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeEditModal()">
+            Cancelar
+          </button>
+          <button class="btn-primary" onclick="saveItemChanges()">
+            Salvar Alterações
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODAL: DETALHES DO PEDIDO -->
+    <!-- ============================================ -->
+    <div id="modal-pedido" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-pedido-title">Detalhes do Pedido</h2>
+          <button class="btn-close" onclick="closePedidoModal()">✕</button>
+        </div>
+
+        <div class="modal-body" id="modal-pedido-body">
+          <!-- Conteúdo será preenchido dinamicamente -->
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-danger" onclick="cancelarPedido()">
+            Cancelar Pedido
+          </button>
+          <button class="btn-success" onclick="finalizarPedido()">
+            Finalizar & Imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODAL: ENVIAR VIA WHATSAPP -->
+    <!-- ============================================ -->
+    <div id="modal-whatsapp" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-whatsapp-title">📱 Enviar para Alex</h2>
+          <button class="btn-close" onclick="closeWhatsAppModal()">✕</button>
+        </div>
+
+        <div class="modal-body" id="modal-whatsapp-body">
+          <!-- Conteúdo será preenchido dinamicamente -->
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeWhatsAppModal()">
+            Cancelar
+          </button>
+          <button class="btn-success" onclick="sendWhatsApp()">
+            📱 Enviar WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODAL: EXCLUIR PEDIDOS POR PERÍODO -->
+    <!-- ============================================ -->
+    <div id="modal-excluir-pedidos" class="modal">
+      <div class="modal-content modal-excluir-content">
+        <div class="modal-header">
+          <h2>🗑️ Excluir Pedidos</h2>
+          <button class="btn-close" onclick="closeModalExcluirPedidos()">
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="modal-excluir-desc">
+            Selecione o período dos pedidos que deseja excluir permanentemente:
+          </p>
+
+          <div class="excluir-opcoes-grid">
+            <button
+              class="excluir-opcao-btn"
+              onclick="excluirPedidosPorPeriodo('hoje')"
+            >
+              <span class="excluir-opcao-icone">📅</span>
+              <span class="excluir-opcao-label">Hoje</span>
+            </button>
+            <button
+              class="excluir-opcao-btn"
+              onclick="excluirPedidosPorPeriodo('ontem')"
+            >
+              <span class="excluir-opcao-icone">📅</span>
+              <span class="excluir-opcao-label">Ontem</span>
+            </button>
+            <button
+              class="excluir-opcao-btn"
+              onclick="excluirPedidosPorPeriodo('semana1')"
+            >
+              <span class="excluir-opcao-icone">📆</span>
+              <span class="excluir-opcao-label">1 semana</span>
+            </button>
+            <button
+              class="excluir-opcao-btn"
+              onclick="excluirPedidosPorPeriodo('semana2')"
+            >
+              <span class="excluir-opcao-icone">📆</span>
+              <span class="excluir-opcao-label">2 semanas</span>
+            </button>
+            <button
+              class="excluir-opcao-btn"
+              onclick="excluirPedidosPorPeriodo('semana3')"
+            >
+              <span class="excluir-opcao-icone">📆</span>
+              <span class="excluir-opcao-label">3 semanas</span>
+            </button>
+            <button
+              class="excluir-opcao-btn"
+              onclick="excluirPedidosPorPeriodo('mes1')"
+            >
+              <span class="excluir-opcao-icone">🗓️</span>
+              <span class="excluir-opcao-label">1 mês</span>
+            </button>
+            <button
+              class="excluir-opcao-btn"
+              onclick="excluirPedidosPorPeriodo('mes2')"
+            >
+              <span class="excluir-opcao-icone">🗓️</span>
+              <span class="excluir-opcao-label">2 meses</span>
+            </button>
+            <button
+              class="excluir-opcao-btn excluir-opcao-tudo"
+              onclick="excluirPedidosPorPeriodo('tudo')"
+            >
+              <span class="excluir-opcao-icone">🗑️</span>
+              <span class="excluir-opcao-label">Excluir tudo</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeModalExcluirPedidos()">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Áudio de notificação -->
+    <audio id="beep-sound" loop>
+      <source src="beep.mp3" type="audio/mpeg" />
+    </audio>
+
+    <!-- Scripts -->
+    <script src="firebase-init-auth.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>

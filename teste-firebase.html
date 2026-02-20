@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔥 Teste Firebase - Ribbs ZN</title>
+    <style>
+      body {
+        font-family: monospace;
+        background: #121212;
+        color: #fff;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      button {
+        background: #ffd500;
+        color: #000;
+        border: none;
+        padding: 15px 30px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 5px;
+        margin: 10px 5px;
+      }
+      button:hover {
+        background: #ffdf33;
+      }
+      #log {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 5px;
+        padding: 15px;
+        margin-top: 20px;
+        max-height: 500px;
+        overflow-y: auto;
+      }
+      .success {
+        color: #2ecc71;
+      }
+      .error {
+        color: #e74c3c;
+      }
+      .info {
+        color: #3498db;
+      }
+      .warning {
+        color: #f39c12;
+      }
+      pre {
+        background: #0a0a0a;
+        padding: 10px;
+        border-radius: 3px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔥 Teste de Integração Firebase - Ribbs ZN</h1>
+
+    <div>
+      <button onclick="testeConexao()">1️⃣ Testar Conexão</button>
+      <button onclick="testeEscrita()">2️⃣ Enviar Pedido Teste</button>
+      <button onclick="testeLeitura()">3️⃣ Ler Pedidos</button>
+      <button onclick="limparLog()">🧹 Limpar Log</button>
+    </div>
+
+    <div id="log"></div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <script>
+      const logEl = document.getElementById("log");
+      let db = null;
+
+      function addLog(msg, type = "info") {
+        const time = new Date().toLocaleTimeString("pt-BR");
+        const p = document.createElement("p");
+        p.className = type;
+        p.innerHTML = `[${time}] ${msg}`;
+        logEl.appendChild(p);
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(msg);
+      }
+
+      function limparLog() {
+        logEl.innerHTML = "";
+      }
+
+      // INICIALIZAÇÃO
+      try {
+        addLog("🔧 Inicializando Firebase...", "info");
+
+        if (typeof firebase === "undefined") {
+          addLog(
+            "❌ ERRO: Firebase não carregado! Scripts não estão funcionando.",
+            "error",
+          );
+        } else {
+          addLog("✅ Firebase SDK carregado com sucesso", "success");
+
+          const firebaseConfig = {
+            apiKey: "AIzaSyDFFbaZmX80QezLfozPAIaIGEhIJm9z43E",
+            authDomain: "ribbsznmesas.firebaseapp.com",
+            databaseURL: "https://ribbsznmesas-default-rtdb.firebaseio.com",
+            projectId: "ribbsznmesas",
+            storageBucket: "ribbsznmesas.firebasestorage.app",
+            messagingSenderId: "970185571294",
+            appId: "1:970185571294:web:25e8552bd72d852283bb4f",
+          };
+
+          firebase.initializeApp(firebaseConfig);
+          db = firebase.database();
+
+          addLog("✅ Firebase inicializado com sucesso!", "success");
+          addLog("✅ Database conectado: " + db.toString(), "success");
+        }
+      } catch (error) {
+        addLog("❌ Erro ao inicializar Firebase: " + error.message, "error");
+        addLog("Stack: " + error.stack, "error");
+      }
+
+      // TESTE 1: CONEXÃO
+      function testeConexao() {
+        addLog("", "info");
+        addLog("====================================", "info");
+        addLog("🧪 TESTE 1: Verificando Conexão", "info");
+        addLog("====================================", "info");
+
+        if (!db) {
+          addLog("❌ Database não inicializado", "error");
+          return;
+        }
+
+        addLog("✅ Database está inicializado", "success");
+        addLog("🔍 Tipo do objeto: " + typeof db, "info");
+        addLog("🔍 Tentando conectar ao caminho .info/connected...", "info");
+
+        db.ref(".info/connected")
+          .once("value")
+          .then((snapshot) => {
+            if (snapshot.val() === true) {
+              addLog("✅ CONECTADO ao Firebase Realtime Database!", "success");
+            } else {
+              addLog("⚠️ Desconectado do Firebase", "warning");
+            }
+          })
+          .catch((error) => {
+            addLog("❌ Erro ao verificar conexão: " + error.message, "error");
+          });
+      }
+
+      // TESTE 2: ESCRITA
+      async function testeEscrita() {
+        addLog("", "info");
+        addLog("====================================", "info");
+        addLog("🧪 TESTE 2: Enviando Pedido Teste", "info");
+        addLog("====================================", "info");
+
+        if (!db) {
+          addLog("❌ Database não inicializado", "error");
+          return;
+        }
+
+        try {
+          const pedidoTeste = {
+            tipo: "delivery",
+            tipoOrigem: "delivery",
+            status: "pending",
+            nomeCliente: "TESTE INTEGRAÇÃO",
+            cliente: "TESTE INTEGRAÇÃO",
+            nome: "TESTE INTEGRAÇÃO",
+            pagamento: "PIX",
+            endereco: "TESTE - Integração Cardápio Digital",
+            itens: [
+              {
+                nome: "X-Bacon Teste",
+                preco: 25.0,
+                quantidade: 1,
+                qtd: 1,
+                observacao: "Tamanho: Grande | Este é um pedido de teste",
+              },
+            ],
+            total: 25.0,
+            timestamp: Date.now(),
+            dataHora: new Date().toLocaleString("pt-BR"),
+          };
+
+          addLog("📦 Pedido montado:", "info");
+          addLog(
+            "<pre>" + JSON.stringify(pedidoTeste, null, 2) + "</pre>",
+            "info",
+          );
+
+          addLog("🚀 Enviando para /pedidos/...", "info");
+          const ref = db.ref("pedidos").push();
+
+          addLog("🔑 ID gerado: " + ref.key, "info");
+
+          await ref.set(pedidoTeste);
+
+          addLog("✅ SUCESSO! Pedido enviado!", "success");
+          addLog("🔍 ID do pedido: " + ref.key, "success");
+          addLog("🔍 Caminho completo: /pedidos/" + ref.key, "info");
+          addLog("", "info");
+          addLog("👀 VERIFIQUE AGORA:", "warning");
+          addLog("1. Abra o KDS (kds.html)", "warning");
+          addLog("2. O pedido deve aparecer na coluna DELIVERY", "warning");
+          addLog("3. Cliente: TESTE INTEGRAÇÃO", "warning");
+          addLog("4. Status: PENDING (amarelo)", "warning");
+        } catch (error) {
+          addLog("❌ ERRO ao enviar: " + error.message, "error");
+          addLog("Stack: " + error.stack, "error");
+
+          if (error.message.includes("PERMISSION_DENIED")) {
+            addLog("", "error");
+            addLog("⚠️ PROBLEMA: Permissão negada!", "error");
+            addLog("SOLUÇÃO:", "warning");
+            addLog(
+              "1. Acesse: https://console.firebase.google.com/",
+              "warning",
+            );
+            addLog('2. Selecione o projeto "ribbsznmesas"', "warning");
+            addLog("3. Vá em Realtime Database → Regras", "warning");
+            addLog("4. Configure as regras assim:", "warning");
+            addLog("<pre>{</pre>", "warning");
+            addLog('<pre>  "rules": {</pre>', "warning");
+            addLog(
+              '<pre>    "pedidos": { ".read": true, ".write": true },</pre>',
+              "warning",
+            );
+            addLog(
+              '<pre>    "historico": { ".read": true, ".write": true }</pre>',
+              "warning",
+            );
+            addLog("<pre>  }</pre>", "warning");
+            addLog("<pre>}</pre>", "warning");
+          }
+        }
+      }
+
+      // TESTE 3: LEITURA
+      function testeLeitura() {
+        addLog("", "info");
+        addLog("====================================", "info");
+        addLog("🧪 TESTE 3: Lendo Pedidos", "info");
+        addLog("====================================", "info");
+
+        if (!db) {
+          addLog("❌ Database não inicializado", "error");
+          return;
+        }
+
+        addLog("📖 Buscando pedidos em /pedidos/...", "info");
+
+        db.ref("pedidos")
+          .once("value")
+          .then((snapshot) => {
+            const data = snapshot.val();
+
+            if (!data) {
+              addLog("⚠️ Nenhum pedido encontrado no banco", "warning");
+              addLog('💡 Clique em "2️⃣ Enviar Pedido Teste" primeiro', "info");
+              return;
+            }
+
+            const pedidos = Object.keys(data);
+            addLog(
+              "✅ Encontrados " + pedidos.length + " pedido(s)",
+              "success",
+            );
+            addLog("", "info");
+
+            pedidos.forEach((id, index) => {
+              const pedido = data[id];
+              addLog("📦 Pedido " + (index + 1) + ":", "info");
+              addLog("   ID: " + id, "info");
+              addLog("   Cliente: " + pedido.nomeCliente, "info");
+              addLog("   Status: " + pedido.status, "info");
+              addLog("   Total: R$ " + pedido.total.toFixed(2), "info");
+              addLog("   Itens: " + pedido.itens.length, "info");
+              addLog("", "info");
+            });
+
+            addLog("📊 Dados completos:", "info");
+            addLog("<pre>" + JSON.stringify(data, null, 2) + "</pre>", "info");
+          })
+          .catch((error) => {
+            addLog("❌ Erro ao ler pedidos: " + error.message, "error");
+          });
+      }
+
+      // Auto-executar teste de conexão
+      window.addEventListener("load", () => {
+        setTimeout(testeConexao, 500);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,181 @@
+/* taxas.css remains unchanged from previous version */
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #f4f7fa;
+  color: #333;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 600px;
+  width: 100%;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+h1,
+h2 {
+  text-align: center;
+  color: #2c3e50;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.user-section,
+.admin-section {
+  margin-bottom: 30px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #2980b9;
+}
+
+button:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+input:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.loading {
+  text-align: center;
+  margin-top: 12px;
+  color: #7f8c8d;
+}
+
+.result {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #e8f6ff;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.error {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #ffebee;
+  border-radius: 8px;
+  text-align: center;
+  color: #c0392b;
+}
+
+.hidden {
+  display: none;
+}
+
+.admin-section {
+  border-top: 1px solid #ddd;
+  padding-top: 20px;
+}
+
+.range-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 12px;
+  background: #f9f9f9;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.range-item label {
+  flex-basis: 100%;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.range-item input {
+  flex: 1;
+  margin-right: 8px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.range-item button {
+  width: auto;
+  padding: 8px 12px;
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+/* Ajustes para contraste (garantindo WCAG AA) */
+button {
+  background-color: #007bff; /* Azul com melhor contraste */
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+/* Mobile First - Já é responsivo por padrão, mas adicionando media query para telas maiores */
+@media (min-width: 768px) {
+  .container {
+    max-width: 800px;
+  }
+
+  .range-item {
+    flex-wrap: nowrap;
+  }
+
+  .range-item label {
+    flex-basis: auto;
+    margin-right: 8px;
+    margin-bottom: 0;
+  }
+}
+
+/* Garantir contraste de texto */
+body {
+  color: #212529; /* Cor mais escura para melhor contraste */
+}

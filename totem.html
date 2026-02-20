@@ -1,0 +1,729 @@
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Cardápio Totem RibbsZn</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div
+      id="startScreen"
+      class="start-screen"
+      role="button"
+      aria-label="Toque para Iniciar"
+    >
+      <img src="./img/toque.png" alt="Toque para Iniciar" />
+    </div>
+    <div id="backdrop" class="backdrop"></div>
+    <main>
+      <header>
+        <div class="header-left">
+          <div style="font-size: 18px; color: var(--amarelo)" id="relogio">
+            --:--
+          </div>
+          <div style="font-size: 14px; color: #fff; opacity: 0.85">
+            #Pedeoteu
+          </div>
+        </div>
+        <div style="text-align: center; font-size: 22px; font-weight: 900">
+          RibbsZn
+        </div>
+        <div class="header-right">
+          <div id="statusOnline">● Online</div>
+        </div>
+      </header>
+      <div class="sessao-topo" id="sessao-topo">
+        <button
+          class="active"
+          onclick="showCategory('Promoções', this)"
+          role="button"
+          aria-label="Promoções"
+        >
+          Promoções
+        </button>
+        <button
+          onclick="showCategory('Clones', this)"
+          role="button"
+          aria-label="Clones"
+        >
+          Clones
+        </button>
+        <button
+          onclick="showCategory('Artesanais', this)"
+          role="button"
+          aria-label="Artesanais"
+        >
+          Artesanais
+        </button>
+        <button
+          onclick="showCategory('Combos', this)"
+          role="button"
+          aria-label="Combos com Batata"
+        >
+          Combos com Batata
+        </button>
+        <button
+          onclick="showCategory('Batata Frita', this)"
+          role="button"
+          aria-label="Batatas"
+        >
+          Batatas
+        </button>
+        <button
+          onclick="showCategory('Bebidas', this)"
+          role="button"
+          aria-label="Bebidas"
+        >
+          Bebidas
+        </button>
+      </div>
+      <div class="cardapio" id="cardapio"></div>
+      <div id="popupCustom" class="popup" aria-hidden="true">
+        <button
+          class="closePopup"
+          onclick="closePopupCustom()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3 id="popupCustomTitle">Personalize seu item</h3>
+        <div id="popupQuestion"></div>
+        <div id="popupResumo"></div>
+        <div style="text-align: center; margin-top: 10px">
+          <button
+            class="btn"
+            id="confirmCustomBtn"
+            onclick="confirmPopupCustom()"
+            role="button"
+            aria-label="Adicionar ao carrinho"
+          >
+            Adicionar ao carrinho
+          </button>
+        </div>
+      </div>
+      <div id="popupResumoPedido" class="popup" aria-hidden="true">
+        <button
+          class="closePopup"
+          onclick="closeResumoPopup()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Resumo do Pedido</h3>
+        <div id="resumoItens" style="margin-top: 8px"></div>
+        <p style="text-align: center; margin-top: 12px">
+          <button
+            class="btn"
+            onclick="openPaymentPopup()"
+            role="button"
+            aria-label="Ir para pagamento"
+          >
+            Ir para pagamento
+          </button>
+        </p>
+      </div>
+      <div id="popupPayment" class="popup" aria-hidden="true">
+        <button
+          class="closePopup"
+          onclick="closePaymentPopup()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Escolha a forma de pagamento</h3>
+        <div class="pay-methods" role="list">
+          <button
+            class="pay-btn pay-pix"
+            onclick="openPixPopup()"
+            aria-label="PIX"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 12h18"
+                stroke="#fff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M12 3v18"
+                stroke="#fff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            PIX — Pagamento instantâneo
+          </button>
+          <button
+            class="pay-btn pay-card"
+            onclick="selectSinglePayment('Cartão')"
+            aria-label="Cartão"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="2"
+                y="5"
+                width="20"
+                height="14"
+                rx="2"
+                stroke="#fff"
+                stroke-width="2"
+              />
+              <path d="M2 10h20" stroke="#fff" stroke-width="2" />
+            </svg>
+            Cartão — Crédito / Débito
+          </button>
+          <button
+            class="pay-btn pay-cash"
+            onclick="selectSinglePayment('Dinheiro')"
+            aria-label="Dinheiro"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="2"
+                y="6"
+                width="20"
+                height="12"
+                rx="2"
+                stroke="#000"
+                stroke-width="1.6"
+              />
+              <circle cx="12" cy="12" r="2.6" fill="#000" />
+            </svg>
+            Dinheiro — Precisa de troco
+          </button>
+          <button
+            class="pay-btn pay-cash"
+            onclick="selectSinglePayment('Dinheiro Exato')"
+            aria-label="Dinheiro Sem Troco"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="2"
+                y="6"
+                width="20"
+                height="12"
+                rx="2"
+                stroke="#000"
+                stroke-width="1.6"
+              />
+              <circle cx="12" cy="12" r="2.6" fill="#000" />
+            </svg>
+            Dinheiro — Não precisa de troco
+          </button>
+          <button
+            class="btn"
+            onclick="abrirPopupDividirPagamento()"
+            role="button"
+            aria-label="Dividir pagamento"
+          >
+            Dividir pagamento
+          </button>
+        </div>
+        <div id="splitPaymentSection" class="" style="display: none">
+          <h4 style="margin-top: 12px">Dividir Pagamento (até 4 pessoas)</h4>
+          <label
+            >Quantas pessoas vão pagar?
+            <select id="numPayers" onchange="setupSplitPayment()">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <div id="splitPaymentInputs"></div>
+          <p id="splitTotal">Total inserido: R$ 0.00</p>
+          <p id="splitError" style="color: red; display: none">
+            ⚠️ A soma dos valores deve ser igual a R$
+            <span id="orderTotal"></span>
+          </p>
+          <button
+            id="confirmSplitBtn"
+            class="btn"
+            onclick="confirmSplitPayment()"
+            style="margin-top: 8px"
+            role="button"
+            aria-label="Confirmar Divisão"
+          >
+            Confirmar Divisão
+          </button>
+        </div>
+      </div>
+      <div id="popupDividirPagamento" class="popup" aria-hidden="true">
+        <button
+          class="close-btn"
+          onclick="closePopupDividir()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h2>Dividir Pagamento</h2>
+        <div
+          id="valorTotalDivisao"
+          style="font-size: 1.2em; margin-bottom: 10px; font-weight: bold"
+        >
+          Total: R$ 0.00
+        </div>
+        <label style="display: block; margin-bottom: 6px"
+          >Quantas pessoas vão pagar?</label
+        >
+        <select
+          id="quantidadePessoas"
+          onchange="gerarCamposDivisao()"
+          style="
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid var(--amarelo);
+            font-size: 18px;
+          "
+        >
+          <option value="">Selecione...</option>
+          <option value="1">1 pessoa</option>
+          <option value="2">2 pessoas</option>
+          <option value="3">3 pessoas</option>
+          <option value="4">4 pessoas</option>
+        </select>
+        <div id="inputsDivisao" style="margin-top: 15px"></div>
+        <div id="dividirKeypad" style="display: none">
+          <button class="key-btn" data-key="7" role="button" aria-label="7">
+            7
+          </button>
+          <button class="key-btn" data-key="8" role="button" aria-label="8">
+            8
+          </button>
+          <button class="key-btn" data-key="9" role="button" aria-label="9">
+            9
+          </button>
+          <button class="key-btn" data-key="4" role="button" aria-label="4">
+            4
+          </button>
+          <button class="key-btn" data-key="5" role="button" aria-label="5">
+            5
+          </button>
+          <button class="key-btn" data-key="6" role="button" aria-label="6">
+            6
+          </button>
+          <button class="key-btn" data-key="1" role="button" aria-label="1">
+            1
+          </button>
+          <button class="key-btn" data-key="2" role="button" aria-label="2">
+            2
+          </button>
+          <button class="key-btn" data-key="3" role="button" aria-label="3">
+            3
+          </button>
+          <button class="key-btn" data-key="0" role="button" aria-label="0">
+            0
+          </button>
+          <button class="key-btn" data-key="." role="button" aria-label=".">
+            .
+          </button>
+          <button
+            class="key-btn"
+            data-key="⌫"
+            role="button"
+            aria-label="Backspace"
+          >
+            ⌫
+          </button>
+        </div>
+        <div id="faltandoValor" style="margin-top: 10px; font-weight: bold">
+          Faltando R$ 0.00
+        </div>
+        <div style="text-align: center; margin-top: 12px">
+          <button
+            id="confirmarDivisao"
+            class="btn"
+            disabled
+            onclick="confirmarDivisao()"
+            role="button"
+            aria-label="Confirmar Divisão"
+          >
+            Confirmar Divisão
+          </button>
+        </div>
+      </div>
+      <div
+        id="popupPix"
+        class="popup"
+        aria-hidden="true"
+        style="width: 380px; max-width: 90%; text-align: center; padding: 20px"
+      >
+        <button
+          class="closePopup"
+          onclick="closePix()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Pagamento via PIX</h3>
+        <p id="pixTotal" style="font-size: 18px; font-weight: bold">
+          Total: R$ 0.00
+        </p>
+        <img
+          src="./img/qr2.png"
+          alt="QR Code PIX"
+          style="
+            width: 300px;
+            height: 300px;
+            margin: 10px auto;
+            display: block;
+            border-radius: 12px;
+            object-fit: contain;
+            background: #f9f9f9;
+          "
+        />
+        <button
+          class="btn"
+          onclick="confirmPix()"
+          style="
+            background: #28a745;
+            color: #fff;
+            font-size: 18px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            margin-top: 14px;
+            font-weight: bold;
+            width: 90%;
+          "
+          role="button"
+          aria-label="Pagamento confirmado"
+        >
+          Pagamento confirmado, clique para continuar.
+        </button>
+      </div>
+      <!-- Novo popup para escolha de calda -->
+      <div id="popupCalda" class="popup" aria-hidden="true">
+        <button
+          class="closePopup"
+          onclick="closeCaldaPopup()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Escolha a calda para o Milk Shake</h3>
+        <div style="text-align: center; margin-top: 10px">
+          <button
+            class="btn"
+            onclick="selectCalda('Morango')"
+            role="button"
+            aria-label="Morango"
+          >
+            Morango
+          </button>
+          <button
+            class="btn"
+            onclick="selectCalda('Chocolate')"
+            role="button"
+            aria-label="Chocolate"
+          >
+            Chocolate
+          </button>
+        </div>
+      </div>
+      <div id="popupNome" class="popup" aria-hidden="true">
+        <button
+          class="closePopup"
+          onclick="closeNome()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Digite o nome do cliente</h3>
+        <input type="text" id="inputNome" readonly />
+        <div id="keyboard"></div>
+        <div style="text-align: center; margin-top: 12px">
+          <button
+            class="btn"
+            onclick="confirmNome()"
+            style="background: var(--vermelho); color: #fff"
+            role="button"
+            aria-label="Confirmar"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+      <div id="popupTroco" class="popup" aria-hidden="true">
+        <button
+          class="closePopup"
+          onclick="closeTrocoPopup()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Troco pra quanto?</h3>
+        <input
+          type="text"
+          id="inputTroco"
+          readonly
+          style="
+            width: 88%;
+            font-size: 20px;
+            padding: 10px;
+            border: 2px solid var(--amarelo);
+            border-radius: 10px;
+            text-align: center;
+          "
+        />
+        <div id="trocoKeyboard"></div>
+        <div style="text-align: center; margin-top: 8px">
+          <button
+            class="btn"
+            onclick="confirmTroco()"
+            style="background: #28a745; color: #fff"
+            role="button"
+            aria-label="Confirmar Troco"
+          >
+            Confirmar Troco
+          </button>
+        </div>
+      </div>
+      <div
+        id="popupAguarde"
+        class="popup"
+        aria-hidden="true"
+        style="width: 420px"
+      >
+        <h3>Pedido em Preparo</h3>
+        <p>Aguarde! Seu pedido foi enviado para a cozinha.</p>
+        <p style="text-align: center; margin-top: 12px">
+          <button
+            class="btn"
+            onclick="reiniciarPedido()"
+            style="background: #000; color: #fff"
+            role="button"
+            aria-label="Novo Pedido"
+          >
+            Novo Pedido
+          </button>
+        </p>
+      </div>
+      <div
+        id="customAlert"
+        class="popup"
+        aria-hidden="true"
+        style="width: 320px; text-align: center"
+      >
+        <button
+          class="closePopup"
+          onclick="closeCustomAlert()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Aviso</h3>
+        <p id="alertMessage"></p>
+        <button
+          class="btn"
+          onclick="closeCustomAlert()"
+          role="button"
+          aria-label="OK"
+        >
+          OK
+        </button>
+      </div>
+      <div
+        id="customConfirm"
+        class="popup"
+        aria-hidden="true"
+        style="width: 320px; text-align: center"
+      >
+        <button
+          class="closePopup"
+          onclick="closeCustomConfirm(false)"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <h3>Confirmação</h3>
+        <p id="confirmMessage"></p>
+        <div
+          style="display: flex; justify-content: space-around; margin-top: 12px"
+        >
+          <button
+            class="btn"
+            style="background: var(--vermelho); color: #fff"
+            onclick="closeCustomConfirm(true)"
+            role="button"
+            aria-label="Sim"
+          >
+            Sim
+          </button>
+          <button
+            class="btn"
+            style="background: var(--preto); color: #fff"
+            onclick="closeCustomConfirm(false)"
+            role="button"
+            aria-label="Não"
+          >
+            Não
+          </button>
+        </div>
+      </div>
+      <div
+        id="popupImage"
+        class="popup"
+        aria-hidden="true"
+        style="width: 60vw; max-width: 600px; text-align: center; padding: 10px"
+      >
+        <button
+          class="closePopup"
+          style="color: red; font-size: 20px"
+          onclick="closeImagePopup()"
+          role="button"
+          aria-label="Fechar"
+        >
+          X
+        </button>
+        <img
+          id="enlargedImage"
+          src=""
+          alt="Imagem ampliada"
+          style="max-width: 100%; max-height: 70vh; border-radius: 10px"
+        />
+      </div>
+
+      <div id="popupTipoConsumo" class="popup" aria-hidden="true">
+        <h3>Onde vai comer?</h3>
+        <div class="tipo-consumo-container">
+          <button
+            class="btn-consumo"
+            onclick="selectTipoConsumo('Para Comer no Local')"
+          >
+            <span class="icon">🍽️</span>
+            <span class="text">Comer no Local</span>
+          </button>
+          <button
+            class="btn-consumo"
+            onclick="selectTipoConsumo('Para Viagem')"
+          >
+            <span class="icon">🥡</span>
+            <span class="text">Para Viagem</span>
+          </button>
+        </div>
+      </div>
+
+      <footer id="footerCart">
+        <button
+          id="toggleCart"
+          title="Alternar carrinho"
+          role="button"
+          aria-label="Alternar carrinho"
+        >
+          ⬆️
+        </button>
+        <h3 style="margin: 0">
+          Toque para abrir e fechar seu Carrinho (<span id="cartCount">0</span>)
+        </h3>
+        <div id="cartItems"></div>
+        <p>
+          <strong>Total: R$ <span id="cartTotal">0.00</span></strong>
+        </p>
+        <div
+          style="
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+            margin-top: 6px;
+          "
+        >
+          <button
+            id="paymentBtn"
+            onclick="mostrarResumo()"
+            role="button"
+            aria-label="Resumo / Pagar"
+          >
+            Resumo / Pagar
+          </button>
+          <button
+            id="clearCartBtn"
+            onclick="clearCart()"
+            role="button"
+            aria-label="Limpar Carrinho"
+          >
+            Limpar Carrinho
+          </button>
+        </div>
+      </footer>
+    </main>
+    <audio id="soundClick" src="/sons/click.mp3" preload="auto"></audio>
+    <audio id="soundAdd" src="/sons/add.mp3" preload="auto"></audio>
+    <audio id="soundConfirm" src="/sons/confirm.mp3" preload="auto"></audio>
+
+    <!-- Firebase SDK - SEM AUTENTICAÇÃO -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Totem Script -->
+    <script src="script.js"></script>
+    <script>
+      (function () {
+        function c() {
+          var b = a.contentDocument || a.contentWindow.document;
+          if (b) {
+            var d = b.createElement("script");
+            d.innerHTML =
+              "window.__CF$cv$params={r:'9ae160224bce00c3',t:'MTc2NTc1MzgzNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
+            b.getElementsByTagName("head")[0].appendChild(d);
+          }
+        }
+        if (document.body) {
+          var a = document.createElement("iframe");
+          a.height = 1;
+          a.width = 1;
+          a.style.position = "absolute";
+          a.style.top = 0;
+          a.style.left = 0;
+          a.style.border = "none";
+          a.style.visibility = "hidden";
+          document.body.appendChild(a);
+          if ("loading" !== document.readyState) c();
+          else if (window.addEventListener)
+            document.addEventListener("DOMContentLoaded", c);
+          else {
+            var e = document.onreadystatechange || function () {};
+            document.onreadystatechange = function (b) {
+              e(b);
+              "loading" !== document.readyState &&
+                ((document.onreadystatechange = e), c());
+            };
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

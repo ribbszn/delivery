@@ -1,0 +1,74 @@
+/* ================================
+   KITCHEN PRINT STYLES
+   ================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Courier New", monospace;
+  padding: 20px;
+  max-width: 300px;
+  font-size: 14px;
+}
+
+.header {
+  text-align: center;
+  border-bottom: 2px dashed #000;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.order-number {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.section {
+  margin: 15px 0;
+  border-bottom: 1px dashed #000;
+  padding-bottom: 10px;
+}
+
+.section-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.item {
+  margin: 8px 0;
+  padding-left: 10px;
+}
+
+.item-qty {
+  font-weight: bold;
+  display: inline-block;
+  width: 30px;
+}
+
+.item-obs {
+  margin-left: 40px;
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid #333;
+  padding: 3px 0 3px 8px;
+  line-height: 1.5;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px;
+}
+
+@media print {
+  body {
+    padding: 10px;
+  }
+}

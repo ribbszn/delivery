@@ -1,0 +1,910 @@
+:root {
+  --preto: #000;
+  --branco: #f2f2f2;
+  --cinza: #b3b3b3;
+  --amarelo: #ffd500;
+  --vermelho: #ff0000;
+  --accent: #ff4500;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #000;
+  color: #000;
+  overflow-x: hidden;
+  background-image: url("./img/fundo.png");
+  background-size: cover;
+  background-attachment: fixed;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0); /* Já existia, mantido */
+  touch-action: manipulation; /* Já existia, mantido */
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none; /* Novo: Previne overscroll em touch */
+  -webkit-overflow-scrolling: touch; /* Novo: Scroll suave em iOS */
+}
+
+.start-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1500;
+  transition: opacity 0.5s ease;
+}
+
+.start-screen img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.start-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.start-active main,
+body.start-active header,
+body.start-active footer {
+  display: none;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px; /* Aumentado para touch */
+  background: #000;
+  color: #fff;
+  font-size: 22px; /* Aumentado */
+  font-weight: bold;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Aumentado */
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Aumentado */
+  font-size: 18px; /* Aumentado */
+  color: #ffd500;
+}
+
+.sessao-topo {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 5px; /* Aumentado */
+  margin: 3px 0; /* Aumentado */
+  padding: 0 3px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Novo: Scroll suave */
+}
+
+.sessao-topo button {
+  background: #fff;
+  color: #000;
+  border-radius: 12px; /* Aumentado */
+  border: none;
+  padding: 8px 12px; /* Aumentado para touch targets */
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 15px; /* Aumentado */
+  min-width: 150px; /* Aumentado */
+  min-height: 48px; /* Novo: Touch target mínimo */
+  touch-action: manipulation;
+}
+
+.sessao-topo button.active {
+  background-color: var(--vermelho);
+  color: white;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-2px);
+}
+
+.sessao-topo button:active {
+  transform: scale(0.96); /* Novo: Feedback visual em toque */
+  transition: transform 0.1s ease;
+}
+
+.cardapio {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 24px; /* Aumentado */
+  padding: 20px; /* Aumentado */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Novo */
+}
+
+.cardapio::-webkit-scrollbar {
+  height: 12px; /* Aumentado para touch */
+  background-color: transparent;
+}
+
+.cardapio::-webkit-scrollbar-track {
+  background: #0a0a08;
+  border-radius: 6px;
+}
+
+.cardapio::-webkit-scrollbar-thumb {
+  background: #e2d40e;
+  border-radius: 6px;
+  border: 1px solid #ffd500;
+}
+
+.card {
+  background: #fff;
+  color: #000;
+  width: 95px; /* Aumentado */
+  border-radius: 15px; /* Aumentado */
+  padding: 5px; /* Aumentado */
+  text-align: center;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.18);
+  flex: 0 0 auto;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.card:active {
+  transform: scale(0.96); /* Ajustado para feedback mais sutil */
+}
+
+.card img {
+  width: 200px; /* Aumentado */
+  height: 100px; /* Aumentado */
+  background: #000;
+  margin-bottom: 10px; /* Aumentado */
+  border-radius: 8px;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+.card h3 {
+  margin: 6px 0;
+  font-size: 20px; /* Aumentado */
+}
+
+.card p {
+  margin: 5px 0;
+  font-size: 17px; /* Aumentado */
+  font-weight: bold;
+}
+
+.card p.descricao {
+  font-weight: normal;
+  font-size: 16px; /* Aumentado */
+  color: #504444;
+  height: 48px; /* Aumentado */
+  overflow: hidden;
+}
+
+#modal-cardapio {
+  max-height: 90vh; /* O modal ocupará no máximo 90% da altura da tela */
+  overflow-y: auto; /* Ativa o scroll vertical se o conteúdo for grande */
+  display: flex;
+  flex-direction: column;
+}
+
+/* O container que envolve as opções */
+.options-row {
+  display: flex;
+  flex-wrap: wrap; /* Permite que os itens pulem para a próxima linha */
+  gap: 10px; /* Espaçamento entre os itens */
+  justify-content: center; /* Distribui os dois itens nas extremidades */
+}
+
+/* Cada opção individual */
+.small-option {
+  flex: 0 1 calc(50% - 10px); /* Ocupa metade da largura menos o gap */
+  box-sizing: border-box;
+}
+
+/* Caso queira que o último item fique centralizado ou alinhado à esquerda se estiver sozinho */
+.small-option:last-child:nth-child(odd) {
+  flex: 0 1 calc(50% - 10px); /* Mantém o tamanho, deixando o espaço vazio ao lado */
+  /* Se quiser que o 3º item ocupe a linha toda, use: flex: 0 1 100%; */
+}
+
+.small-option button {
+  font-weight: bold;
+  margin-top: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.btn {
+  padding: 4px 4px; /* Aumentado */
+  font-size: 8px; /* Aumentado */
+  background: #ffc700;
+  color: #030202ff;
+  border: none;
+  border-radius: 6px; /* Aumentado */
+  cursor: pointer;
+  margin: 6px;
+  transition:
+    background 0.15s,
+    transform 0.1s; /* Ajustado */
+  touch-action: manipulation;
+  min-width: 60px; /* Novo */
+  min-height: 48px; /* Novo: Touch target */
+}
+
+.btn:active {
+  background: #ffc700;
+  transform: scale(0.96); /* Novo: Feedback em toque */
+}
+
+/* Notificação de Feedback */
+.toast-cart {
+  position: fixed;
+  bottom: 170px; /* Fica acima do footer do carrinho */
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background-color: #009000;
+  color: #e1e1e1;
+  padding: 15px 30px;
+  border-radius: 50px;
+  font-weight: bold;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 3000;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast-cart.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+footer {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 75%;
+  max-width: 640px;
+  background: #fff;
+  padding: 12px 24px; /* Aumentado */
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 12px 12px 0 0;
+  transition:
+    max-height 0.36s ease-in-out,
+    transform 0.24s ease;
+  min-height: 42px; /* Aumentado */
+  max-height: 46px; /* Aumentado */
+  z-index: 1100;
+  overflow: hidden;
+}
+
+footer.expanded {
+  max-height: 85vh;
+}
+
+#toggleCart {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 24px; /* Aumentado */
+  cursor: pointer;
+  color: #000;
+  touch-action: manipulation;
+  padding: 10px; /* Aumentado */
+  min-height: 48px; /* Novo */
+}
+
+#cartItems {
+  text-align: center;
+  width: 100%;
+  margin: 10px 0; /* Aumentado */
+  padding: 8px 0;
+  overflow-y: auto;
+  max-height: 40vh;
+}
+
+#cartItems p {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0; /* Aumentado */
+  font-size: 18px; /* Aumentado */
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.removeBtn {
+  background: red;
+  color: #fff;
+  border: none;
+  border-radius: 8px; /* Aumentado */
+  cursor: pointer;
+  padding: 10px 12px; /* Aumentado */
+  font-size: 12px; /* Aumentado */
+  min-width: 52px;
+  min-height: 48px; /* Novo */
+  touch-action: manipulation;
+}
+
+#paymentBtn,
+#clearCartBtn {
+  padding: 14px 20px; /* Aumentado */
+  border-radius: 10px; /* Aumentado */
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 20px; /* Aumentado */
+  min-height: 56px; /* Aumentado */
+}
+
+.qtyBtn {
+  background: var(--amarelo);
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  padding: 9px 9px;
+  font-weight: bolder;
+  font-size: 18px; /* Aumentado */
+  margin: 0 6px;
+  min-width: 46px;
+  min-height: 46px; /* Novo */
+  touch-action: manipulation;
+}
+
+#paymentBtn {
+  background: var(--vermelho);
+  color: #fff;
+}
+
+#clearCartBtn {
+  background: #000;
+  color: #fff;
+}
+
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 24px;
+  border-radius: 16px;
+  z-index: 1300;
+  width: 440px;
+  max-width: 94%;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  display: none;
+  max-height: 80vh;
+  overflow-y: auto;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.popup.show {
+  display: block;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.popup.hiding {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.96);
+}
+
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1200;
+  display: none;
+  transition: opacity 0.3s ease;
+}
+
+.backdrop.show {
+  display: block;
+  opacity: 1;
+}
+
+.backdrop.hiding {
+  opacity: 0;
+}
+
+.closePopup {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #888;
+  padding: 4px 8px;
+  border-radius: 50%;
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+
+.closePopup:hover {
+  color: #000;
+  background: #eee;
+}
+
+#popupCustom {
+  text-align: left;
+  color: #000;
+}
+
+#popupCustomTitle {
+  text-align: center;
+  color: var(--preto);
+  font-size: 24px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--amarelo);
+  padding-bottom: 10px;
+}
+
+#popupCustom label {
+  /* Novo: Estilo para labels de checkboxes */
+  display: block;
+  margin: 10px 0;
+  font-size: 18px;
+  color: #333;
+  cursor: pointer;
+}
+
+#popupCustom input[type="checkbox"] {
+  /* Novo: Checkbox estilizado */
+  accent-color: var(--vermelho);
+  margin-right: 10px;
+  transform: scale(1.2);
+}
+
+#popupCustom::-webkit-scrollbar {
+  width: 10px; /* Aumentado */
+}
+
+#popupCustom::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 5px;
+}
+
+#popupCustom::-webkit-scrollbar-thumb {
+  background: var(--amarelo);
+  border-radius: 5px;
+}
+
+#popupPayment {
+  width: 400px; /* Aumentado */
+  max-width: 94%;
+  text-align: center;
+  padding: 20px; /* Aumentado */
+}
+
+.pay-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Aumentado */
+  margin-top: 16px; /* Aumentado */
+}
+
+.pay-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px; /* Aumentado */
+  border-radius: 12px; /* Aumentado */
+  padding: 14px 16px; /* Aumentado */
+  border: none;
+  cursor: pointer;
+  font-size: 20px; /* Aumentado */
+  justify-content: center;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+  min-height: 56px; /* Novo */
+}
+
+.pay-btn svg {
+  width: 36px; /* Aumentado */
+  height: 36px;
+}
+
+.pay-btn:active {
+  transform: scale(0.96); /* Novo: Feedback */
+}
+
+.pay-pix {
+  background: linear-gradient(90deg, #00c853, #00e676);
+  color: #fff;
+}
+
+.pay-card {
+  background: linear-gradient(90deg, #3b3b98, #5b2c6f);
+  color: #fff;
+}
+
+.pay-cash {
+  background: linear-gradient(90deg, #f9a825, #ffb300);
+  color: #000;
+}
+
+#popupDividirPagamento {
+  width: 440px; /* Aumentado */
+  max-width: 94%;
+  text-align: center;
+  padding: 20px; /* Aumentado */
+  border-radius: 16px; /* Aumentado */
+}
+
+#popupDividirPagamento h2 {
+  margin: 0 0 10px 0;
+}
+
+#popupDividirPagamento select,
+#popupDividirPagamento input[type="number"] {
+  padding: 12px; /* Aumentado */
+  border-radius: 10px; /* Aumentado */
+  border: 2px solid var(--amarelo);
+  font-size: 20px; /* Aumentado */
+  width: 90%;
+  margin: 10px 0; /* Aumentado */
+}
+
+#inputsDivisao .rowDiv {
+  display: flex;
+  gap: 10px; /* Aumentado */
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+#inputsDivisao .rowDiv label {
+  min-width: 130px; /* Aumentado */
+  text-align: left;
+  margin-left: 8px;
+}
+
+#faltandoValor {
+  font-size: 18px; /* Aumentado */
+  margin-top: 10px;
+}
+
+#dividirKeypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px; /* Aumentado */
+  margin-top: 14px;
+  justify-items: center;
+}
+
+.key-btn {
+  width: 80px; /* Aumentado */
+  height: 72px; /* Aumentado */
+  border-radius: 12px; /* Aumentado */
+  background: #000;
+  color: #fff;
+  border: none;
+  font-size: 22px; /* Aumentado */
+  cursor: pointer;
+  min-height: 48px; /* Novo */
+}
+
+.key-btn:active {
+  transform: scale(0.96);
+}
+
+.tipo-btn {
+  flex: 1;
+  min-width: 180px;
+  min-height: 120px;
+  background: var(--amarelo);
+  border: none;
+  border-radius: 16px;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+  touch-action: manipulation;
+}
+
+.tipo-btn span {
+  font-size: 20px;
+}
+
+.tipo-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Estilização do Novo Modal de Consumo */
+.tipo-consumo-container {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn-consumo {
+  background-color: var(--amarelo);
+  color: var(--preto);
+  border: none;
+  border-radius: 16px;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-consumo:active {
+  transform: scale(0.95);
+}
+
+.btn-consumo .icon {
+  font-size: 50px;
+  margin-bottom: 10px;
+}
+
+.btn-consumo .text {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#popupTipoConsumo h3 {
+  text-align: center;
+  font-size: 24px;
+  color: #fff;
+}
+/* Botões grandes para toque fácil */
+.large-btn {
+  background: var(--amarelo);
+  color: var(--preto);
+  font-size: 22px;
+  padding: 20px 30px;
+  border-radius: 15px;
+  border: none;
+  cursor: pointer;
+  min-width: 150px;
+  min-height: 80px; /* Tamanho generoso para totem */
+  touch-action: manipulation;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+
+.large-btn:hover,
+.large-btn:active {
+  background: #ffc700;
+  transform: scale(0.96);
+}
+
+#popupNome {
+  width: 800px; /* Aumentado */
+  max-width: 100%;
+  max-height: 85vh;
+  overflow: auto;
+  text-align: center;
+  border-radius: 20px; /* Aumentado */
+  padding: 20px; /* Aumentado */
+}
+
+#inputNome {
+  width: 88%;
+  font-size: 24px; /* Aumentado */
+  padding: 14px 16px; /* Aumentado */
+  border: 2px solid var(--amarelo);
+  border-radius: 12px; /* Aumentado */
+  text-align: center;
+}
+
+#keyboard {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 10px; /* Aumentado */
+  margin-top: 14px;
+  justify-items: center;
+}
+
+#keyboard button {
+  width: 64px; /* Aumentado */
+  height: 64px; /* Aumentado */
+  font-size: 22px; /* Aumentado */
+  border-radius: 12px; /* Aumentado */
+  background: #000;
+  color: #fff;
+  border: none;
+  font-weight: bold;
+  min-height: 48px; /* Novo */
+}
+
+#keyboard button.space {
+  grid-column: span 3;
+  width: 200px; /* Aumentado */
+}
+
+#keyboard button.backspace {
+  background: var(--accent);
+  width: 120px; /* Aumentado */
+}
+
+#popupTroco {
+  width: 440px; /* Aumentado */
+  max-width: 94%;
+  text-align: center;
+  border-radius: 16px; /* Aumentado */
+  padding: 24px; /* Aumentado */
+}
+
+#trocoKeyboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px; /* Aumentado */
+  margin-top: 12px;
+}
+
+#trocoKeyboard button {
+  width: 80px; /* Aumentado */
+  height: 72px; /* Aumentado */
+  border-radius: 12px; /* Aumentado */
+  background: #000;
+  color: #fff;
+  border: none;
+  font-size: 22px; /* Aumentado */
+}
+
+#popupResumoPedido {
+  width: 440px; /* Aumentado */
+  max-width: 94%;
+  text-align: left;
+  padding: 20px; /* Aumentado */
+  border-radius: 14px; /* Aumentado */
+}
+
+.small-note {
+  font-size: 14px; /* Aumentado */
+  color: #666;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 800px) {
+  .card {
+    width: 48%;
+  }
+  #inputNome {
+    font-size: 22px; /* Ajustado */
+  }
+}
+
+@media (max-width: 420px) {
+  .card {
+    width: 92%;
+  }
+  header {
+    font-size: 18px;
+    padding: 12px;
+  }
+  .sessao-topo button {
+    min-width: 100px;
+    font-size: 9px;
+    padding: 6px 4px;
+  }
+}
+
+/* Novo: Media query para totens grandes (ex: >1024px) */
+@media (min-width: 1024px) {
+  .card {
+    width: 280px;
+  }
+  .btn {
+    padding: 12px 20px;
+    font-size: 18px;
+  }
+  .popup {
+    padding: 28px;
+  }
+}
+@media (max-width: 480px) {
+  .small-option {
+    flex: 0 1 100%; /* Em telas muito pequenas, empilha tudo verticalmente para legibilidade */
+  }
+}
+
+/* Estilo para itens indisponíveis (se quiser mostrar com aviso em vez de esconder) */
+.card.hidden {
+  display: none; /* Ou use opacity: 0.5; filter: grayscale(100%); */
+}
+
+.card.unavailable {
+  opacity: 0.5;
+  filter: grayscale(100%);
+  position: relative;
+}
+
+.card.unavailable::after {
+  content: "Esgotado";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+/* Atualizações para style.css (Totem) - Estilos para itens indisponíveis */
+
+/* No final do arquivo, adicione: */
+
+.card.unavailable {
+  opacity: 0.5;
+
+  filter: grayscale(100%);
+
+  position: relative;
+}
+
+.card.unavailable .unavailable-overlay {
+  position: absolute;
+
+  top: 50%;
+
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  background: rgba(255, 0, 0, 0.8);
+
+  color: white;
+
+  padding: 10px 20px;
+
+  border-radius: 10px;
+
+  font-weight: bold;
+
+  font-size: 18px;
+
+  z-index: 10;
+}

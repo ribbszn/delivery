@@ -1,52 +1,129 @@
 // taxas.js
 
-// Endereço de origem fixo
+// ─── Constantes ───────────────────────────────────────────────────────────────
 const ORIGIN_ADDRESS =
   "Rua Lauro de Souza, 465 - Campo Grande, Recife, CEP 52040-370";
 
-// Faixas de distância iniciais (em metros) e preços (em R$)
-// Aqui você pode alterar as faixas diretamente no código.
-// Formato: [{ min: número (m), max: número (m), price: número (R$) }]
-// Certifique-se de que as faixas sejam contínuas e sem sobreposições.
-// Para adicionar mais, basta incluir novos objetos no array.
-// Exemplo: Adicione { min: 501, max: 1000, price: 10 } para próxima faixa.
+// ─── Faixas de distância ──────────────────────────────────────────────────────
 let distanceRanges = [
   { min: 0, max: 100, price: 5 },
   { min: 101, max: 500, price: 7 },
   { min: 501, max: 1000, price: 10 },
-  { min: 1001, max: Infinity, price: 15 }, // Faixa final para distâncias maiores
+  { min: 1001, max: Infinity, price: 15 },
 ];
 
-// Carregar faixas do localStorage se existirem (para persistência)
 if (localStorage.getItem("distanceRanges")) {
-  distanceRanges = JSON.parse(localStorage.getItem("distanceRanges"));
+  try {
+    distanceRanges = JSON.parse(localStorage.getItem("distanceRanges"));
+  } catch (e) {
+    console.warn("Erro ao carregar distanceRanges:", e);
+  }
 }
 
-// Função para salvar faixas no localStorage
 function saveRanges() {
   localStorage.setItem("distanceRanges", JSON.stringify(distanceRanges));
 }
 
-// Inicializar PlaceAutocompleteElement
+// ─── Taxas por rua ────────────────────────────────────────────────────────────
+let streetFees = [];
+
+if (localStorage.getItem("streetFees")) {
+  try {
+    streetFees = JSON.parse(localStorage.getItem("streetFees"));
+  } catch (e) {
+    console.warn("Erro ao carregar streetFees:", e);
+  }
+}
+
+function saveStreetFees() {
+  localStorage.setItem("streetFees", JSON.stringify(streetFees));
+}
+
+function normalizeStreetName(name) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getStreetFee(address) {
+  if (!address || streetFees.length === 0) return 0;
+  const norm = normalizeStreetName(address);
+  for (const entry of streetFees) {
+    if (norm.includes(entry.normalizedName)) return entry.fee;
+  }
+  return 0;
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(message, type = "success", duration = 3200) {
+  const icons = { success: "✓", error: "✕", info: "ℹ" };
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${icons[type] ?? "•"}</span><span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("toast-fade-out");
+    toast.addEventListener("animationend", () => toast.remove(), {
+      once: true,
+    });
+  }, duration);
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+const mainEl = document.getElementById("main");
+
+function openSidebar() {
+  sidebar.classList.add("open");
+  sidebarOverlay.classList.add("active");
+  mainEl.classList.add("blurred");
+  sidebar.setAttribute("aria-hidden", "false");
+  document.getElementById("sidebar-close").focus();
+  document.body.style.overflow = "hidden";
+  // Inicializar autocomplete de rua quando abrir pela primeira vez
+  initStreetAdminAutocomplete();
+}
+
+function closeSidebar() {
+  sidebar.classList.remove("open");
+  sidebarOverlay.classList.remove("active");
+  mainEl.classList.remove("blurred");
+  sidebar.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
+  document.getElementById("sidebar-open").focus();
+}
+
+document.getElementById("sidebar-open").addEventListener("click", openSidebar);
+document
+  .getElementById("sidebar-close")
+  .addEventListener("click", closeSidebar);
+sidebarOverlay.addEventListener("click", closeSidebar);
+
+// Fechar com Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && sidebar.classList.contains("open")) closeSidebar();
+});
+
+// ─── Autocomplete: campo principal ────────────────────────────────────────────
 let autocompleteElement;
-let selectedPlace = null; // Armazenar o place selecionado
+let selectedPlace = null;
+
 async function initAutocomplete() {
   try {
-    // Importar a biblioteca places
     const { PlaceAutocompleteElement } =
       await google.maps.importLibrary("places");
-
-    // Criar o elemento de autocomplete
     autocompleteElement = new PlaceAutocompleteElement({
-      componentRestrictions: { country: "BR" }, // Restringir ao Brasil
+      componentRestrictions: { country: "BR" },
     });
-
-    // Anexar ao container
     document
       .getElementById("autocomplete-container")
       .appendChild(autocompleteElement);
 
-    // Listener para quando um place é selecionado
     autocompleteElement.addEventListener("gmp-placeselect", async (event) => {
       const { place } = event;
       selectedPlace = await place.fetchFields({
@@ -54,58 +131,95 @@ async function initAutocomplete() {
       });
     });
 
-    // Adicionar listener para enter no elemento (para acessibilidade)
+    // Enter dispara o cálculo
     autocompleteElement.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        document.getElementById("calculate-btn").click();
+        // Pequeno delay para o gmp-placeselect processar se uma sugestão foi confirmada
+        setTimeout(() => document.getElementById("calculate-btn").click(), 80);
       }
     });
-  } catch (error) {
-    console.error("Erro ao inicializar autocomplete:", error);
-    showError("Erro ao carregar o autocomplete do Google Maps.");
+  } catch (err) {
+    console.error("Erro ao inicializar autocomplete:", err);
+    showError("Erro ao carregar o Google Maps.");
   }
 }
 
-// Calcular taxa baseada na distância
-function calculateFee(distanceInMeters) {
-  for (let range of distanceRanges) {
-    if (
-      distanceInMeters >= range.min &&
-      (distanceInMeters <= range.max || range.max === Infinity)
-    ) {
+// ─── Autocomplete: campo admin (rua) ──────────────────────────────────────────
+let streetAdminAutocomplete;
+let selectedStreetPlace = null;
+let streetAutocompleteReady = false;
+
+async function initStreetAdminAutocomplete() {
+  if (streetAutocompleteReady) return;
+  try {
+    const { PlaceAutocompleteElement } =
+      await google.maps.importLibrary("places");
+    streetAdminAutocomplete = new PlaceAutocompleteElement({
+      componentRestrictions: { country: "BR" },
+    });
+    document
+      .getElementById("street-autocomplete-container")
+      .appendChild(streetAdminAutocomplete);
+
+    streetAdminAutocomplete.addEventListener(
+      "gmp-placeselect",
+      async (event) => {
+        const { place } = event;
+        selectedStreetPlace = await place.fetchFields({
+          fields: ["displayName", "formattedAddress", "addressComponents"],
+        });
+      },
+    );
+
+    // Digitar manualmente invalida a seleção anterior
+    streetAdminAutocomplete.addEventListener("input", () => {
+      selectedStreetPlace = null;
+    });
+
+    streetAutocompleteReady = true;
+  } catch (err) {
+    console.error("Erro ao inicializar autocomplete de rua:", err);
+  }
+}
+
+function resetStreetAutocomplete() {
+  document.getElementById("street-autocomplete-container").innerHTML = "";
+  streetAutocompleteReady = false;
+  selectedStreetPlace = null;
+  initStreetAdminAutocomplete();
+}
+
+// ─── Cálculo ──────────────────────────────────────────────────────────────────
+function calculateFee(meters) {
+  for (const range of distanceRanges) {
+    if (meters >= range.min && (meters <= range.max || range.max === Infinity))
       return range.price;
-    }
   }
-  return null; // Se não encontrar faixa (erro)
+  return null;
 }
 
-// Formatar distância para exibição
 function formatDistance(meters) {
-  if (meters >= 1000) {
-    return (meters / 1000).toFixed(1) + " km";
-  }
-  return meters + " m";
+  return meters >= 1000 ? (meters / 1000).toFixed(1) + " km" : meters + " m";
 }
 
-// Verificar se o endereço está em Recife ou Olinda
 function isInAllowedCity(place) {
-  if (!place || !place.addressComponents) return false;
-  const cityComponent = place.addressComponents.find((comp) =>
-    comp.types.includes("administrative_area_level_2"),
-  );
-  const city = cityComponent ? cityComponent.longName.toLowerCase() : "";
+  if (!place?.addressComponents) return false;
+  const city =
+    place.addressComponents
+      .find((c) => c.types.includes("administrative_area_level_2"))
+      ?.longName.toLowerCase() ?? "";
   return city.includes("recife") || city.includes("olinda");
 }
 
-// Evento do botão calcular
+// ─── Botão calcular ───────────────────────────────────────────────────────────
 document.getElementById("calculate-btn").addEventListener("click", async () => {
   if (!autocompleteElement) {
     showError("Autocomplete não inicializado.");
     return;
   }
 
-  const destinationInput = autocompleteElement.value; // Obter o valor digitado
-  if (!destinationInput) {
+  const input = autocompleteElement.value?.trim();
+  if (!input) {
     showError("Por favor, digite um endereço de destino.");
     return;
   }
@@ -114,9 +228,7 @@ document.getElementById("calculate-btn").addEventListener("click", async () => {
   hideResult();
   hideError();
 
-  // Usar o place selecionado se disponível
   if (selectedPlace) {
-    // Verificar cidade
     if (!isInAllowedCity(selectedPlace)) {
       showError("Entregas disponíveis apenas em Recife e Olinda.");
       showLoading(false);
@@ -124,134 +236,242 @@ document.getElementById("calculate-btn").addEventListener("click", async () => {
     }
     calculateDistance(selectedPlace.formattedAddress);
   } else {
-    // Se não selecionado, usar o texto como destino
-    calculateDistance(destinationInput);
+    calculateDistance(input);
   }
 });
 
-// Função para calcular distância usando Distance Matrix API
-async function calculateDistance(destinationAddress) {
+async function calculateDistance(destination) {
   try {
-    // Importar a biblioteca routes para DistanceMatrixService
     const { DistanceMatrixService } = await google.maps.importLibrary("routes");
-
-    const service = new DistanceMatrixService();
-    service.getDistanceMatrix(
+    new DistanceMatrixService().getDistanceMatrix(
       {
         origins: [ORIGIN_ADDRESS],
-        destinations: [destinationAddress],
+        destinations: [destination],
         travelMode: "DRIVING",
         unitSystem: google.maps.UnitSystem.METRIC,
       },
       (response, status) => {
         showLoading(false);
-        if (status === "OK") {
-          const result = response.rows[0].elements[0];
-          if (result.status === "OK") {
-            const distanceInMeters = result.distance.value;
-            const fee = calculateFee(distanceInMeters);
-            if (fee !== null) {
-              showResult(
-                `Distância: ${formatDistance(distanceInMeters)}<br>Taxa de Entrega: R$ ${fee.toFixed(2)}`,
-              );
-            } else {
-              showError("Distância fora das faixas configuradas.");
-            }
-          } else {
-            showError("Endereço de destino não encontrado ou inválido.");
-          }
-        } else {
+        if (status !== "OK") {
           showError("Erro ao calcular distância. Tente novamente.");
+          return;
         }
+
+        const el = response.rows[0].elements[0];
+        if (el.status !== "OK") {
+          showError("Endereço não encontrado ou inválido.");
+          return;
+        }
+
+        const meters = el.distance.value;
+        const baseFee = calculateFee(meters);
+
+        if (baseFee === null) {
+          showError("Distância fora das faixas configuradas.");
+          return;
+        }
+
+        const streetExtra = getStreetFee(destination);
+        const total = baseFee + streetExtra;
+
+        let html = `
+          <span class="result-distance">Distância: ${formatDistance(meters)}</span>
+          <span class="result-fee">R$ ${total.toFixed(2)}</span>
+        `;
+        if (streetExtra > 0) {
+          html += `<span class="result-extra">Taxa base R$ ${baseFee.toFixed(2)} + R$ ${streetExtra.toFixed(2)} (taxa da rua)</span>`;
+        }
+        showResult(html);
       },
     );
-  } catch (error) {
+  } catch (err) {
     showLoading(false);
-    console.error("Erro ao carregar DistanceMatrixService:", error);
+    console.error(err);
     showError("Erro ao calcular distância.");
   }
 }
 
-// Funções de UI
+// ─── UI helpers ───────────────────────────────────────────────────────────────
 function showLoading(show) {
   document.getElementById("loading").classList.toggle("hidden", !show);
 }
-
-function showResult(message) {
-  const resultDiv = document.getElementById("result");
-  resultDiv.innerHTML = message;
-  resultDiv.classList.remove("hidden");
-  resultDiv.focus(); // Focar no resultado para leitores de tela
+function showResult(html) {
+  const el = document.getElementById("result");
+  el.innerHTML = html;
+  el.classList.remove("hidden");
+  el.focus();
 }
-
 function hideResult() {
   document.getElementById("result").classList.add("hidden");
 }
-
-function showError(message) {
-  const errorDiv = document.getElementById("error");
-  errorDiv.textContent = message;
-  errorDiv.classList.remove("hidden");
-  errorDiv.focus(); // Focar no erro para leitores de tela
+function showError(msg) {
+  const el = document.getElementById("error");
+  document.getElementById("error-text").textContent = msg;
+  el.classList.remove("hidden");
+  el.focus();
 }
-
 function hideError() {
   document.getElementById("error").classList.add("hidden");
 }
 
-// Seção Administrativa
+// ─── Render: faixas de distância ──────────────────────────────────────────────
 function renderRanges() {
   const list = document.getElementById("ranges-list");
   list.innerHTML = "";
+
+  if (distanceRanges.length === 0) {
+    list.innerHTML = '<p class="no-items-msg">Nenhuma faixa cadastrada.</p>';
+  }
+
   distanceRanges.forEach((range, index) => {
     const item = document.createElement("div");
-    item.classList.add("range-item");
+    item.className = "range-item";
     item.setAttribute("role", "listitem");
-    const uniqueId = `range-${index}`;
     item.innerHTML = `
-            <label for="${uniqueId}-min">Mínimo (m):</label>
-            <input type="number" id="${uniqueId}-min" value="${range.min}" class="min-input" placeholder="Min (m)" aria-required="true">
-            
-            <label for="${uniqueId}-max">Máximo (m):</label>
-            <input type="number" id="${uniqueId}-max" value="${range.max === Infinity ? "" : range.max}" class="max-input" placeholder="Max (m) ou vazio para infinito">
-            
-            <label for="${uniqueId}-price">Preço (R$):</label>
-            <input type="number" id="${uniqueId}-price" value="${range.price}" class="price-input" placeholder="Preço (R$)" step="0.01" aria-required="true">
-            
-            <button class="save-btn">Salvar</button>
-            <button class="delete-btn">Excluir</button>
-        `;
-    // Evento salvar
-    item.querySelector(".save-btn").addEventListener("click", () => {
+      <div class="range-field">
+        <label>Mín (m)</label>
+        <input type="number" class="min-input" value="${range.min}" placeholder="0">
+      </div>
+      <div class="range-field">
+        <label>Máx (m)</label>
+        <input type="number" class="max-input" value="${range.max === Infinity ? "" : range.max}" placeholder="∞">
+      </div>
+      <div class="range-field">
+        <label>Preço R$</label>
+        <input type="number" class="price-input" value="${range.price}" step="0.01" placeholder="0.00">
+      </div>
+      <div class="range-actions">
+        <button class="btn-save">Salvar</button>
+        <button class="btn-delete">Excluir</button>
+      </div>
+    `;
+
+    item.querySelector(".btn-save").addEventListener("click", () => {
       const min = parseInt(item.querySelector(".min-input").value);
-      const maxInput = item.querySelector(".max-input").value;
-      const max = maxInput ? parseInt(maxInput) : Infinity;
+      const maxRaw = item.querySelector(".max-input").value;
+      const max = maxRaw ? parseInt(maxRaw) : Infinity;
       const price = parseFloat(item.querySelector(".price-input").value);
       if (!isNaN(min) && !isNaN(price) && (max === Infinity || !isNaN(max))) {
         distanceRanges[index] = { min, max, price };
         saveRanges();
         renderRanges();
+        showToast("Faixa salva!", "success");
       } else {
-        alert("Valores inválidos."); // Pode ser substituído por erro mais acessível
+        showToast("Valores inválidos.", "error");
       }
     });
-    // Evento excluir
-    item.querySelector(".delete-btn").addEventListener("click", () => {
+
+    item.querySelector(".btn-delete").addEventListener("click", () => {
       distanceRanges.splice(index, 1);
       saveRanges();
       renderRanges();
+      showToast("Faixa removida.", "info");
+    });
+
+    list.appendChild(item);
+  });
+}
+
+document.getElementById("add-range-btn").addEventListener("click", () => {
+  distanceRanges.push({ min: 0, max: 0, price: 0 });
+  saveRanges();
+  renderRanges();
+  document
+    .getElementById("ranges-list")
+    .lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+
+// ─── Render: taxas por rua ────────────────────────────────────────────────────
+function renderStreetFees() {
+  const list = document.getElementById("street-fees-list");
+  list.innerHTML = "";
+
+  if (streetFees.length === 0) {
+    list.innerHTML =
+      '<p class="no-items-msg">Nenhuma taxa por rua cadastrada.</p>';
+    return;
+  }
+
+  streetFees.forEach((entry, index) => {
+    const item = document.createElement("div");
+    item.className = "street-fee-item";
+    item.setAttribute("role", "listitem");
+    item.innerHTML = `
+      <span class="street-name" title="${entry.streetName}">${entry.streetName}</span>
+      <span class="street-price">+ R$ ${entry.fee.toFixed(2)}</span>
+      <button class="btn-delete-street" aria-label="Excluir ${entry.streetName}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
+    item.querySelector(".btn-delete-street").addEventListener("click", () => {
+      const name = entry.streetName;
+      streetFees.splice(index, 1);
+      saveStreetFees();
+      renderStreetFees();
+      showToast(`"${name}" removida.`, "info");
     });
     list.appendChild(item);
   });
 }
 
-// Adicionar nova faixa
-document.getElementById("add-range-btn").addEventListener("click", () => {
-  distanceRanges.push({ min: 0, max: 0, price: 0 });
-  saveRanges();
-  renderRanges();
+// ─── Adicionar nova rua ───────────────────────────────────────────────────────
+document.getElementById("add-street-btn").addEventListener("click", () => {
+  const errEl = document.getElementById("street-error");
+  errEl.classList.add("hidden");
+
+  const feeVal = parseFloat(document.getElementById("street-fee-input").value);
+  if (isNaN(feeVal) || feeVal < 0) {
+    errEl.textContent = "Informe um valor de taxa válido (≥ 0).";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  // Obter nome: prioriza place selecionado, fallback = texto digitado
+  let streetName = "";
+
+  if (selectedStreetPlace) {
+    const routeComp = selectedStreetPlace.addressComponents?.find((c) =>
+      c.types.includes("route"),
+    );
+    streetName =
+      routeComp?.longName ||
+      selectedStreetPlace.displayName ||
+      selectedStreetPlace.formattedAddress ||
+      "";
+  }
+
+  if (!streetName && streetAdminAutocomplete) {
+    streetName = (streetAdminAutocomplete.value || "").trim();
+  }
+
+  if (!streetName) {
+    errEl.textContent = "Digite ou selecione o nome de uma rua.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  const normalizedName = normalizeStreetName(streetName);
+
+  if (streetFees.some((e) => e.normalizedName === normalizedName)) {
+    errEl.textContent = `Já existe uma taxa para "${streetName}".`;
+    errEl.classList.remove("hidden");
+    return;
+  }
+
+  streetFees.push({ streetName, normalizedName, fee: feeVal });
+  saveStreetFees();
+  renderStreetFees();
+
+  document.getElementById("street-fee-input").value = "";
+  resetStreetAutocomplete();
+
+  showToast(
+    `R$ ${feeVal.toFixed(2)} adicionado para "${streetName}"!`,
+    "success",
+  );
 });
 
-// Inicializar ao carregar a página
+// ─── Inicialização ────────────────────────────────────────────────────────────
 initAutocomplete();
 renderRanges();
+renderStreetFees();

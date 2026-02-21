@@ -1,19 +1,19 @@
-<!-- taxas.html -->
 <!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema de Cálculo de Taxa de Entrega</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Pesquisa de Taxas de Entrega</title>
     <link rel="stylesheet" href="taxas.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
-
-    <!-- Bootstrap loader for Google Maps JavaScript API -->
     <script>
       ((g) => {
         var h,
@@ -49,39 +49,267 @@
         d[l]
           ? console.warn(p + " only loads once. Ignoring:", g)
           : (d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)));
-      })({
-        key: "AIzaSyC5KTOnyJyfZMCm-VOF_JFCbRKQDTWWpOg",
-        v: "weekly",
-      });
+      })({ key: "AIzaSyC5KTOnyJyfZMCm-VOF_JFCbRKQDTWWpOg", v: "weekly" });
     </script>
   </head>
   <body>
-    <div class="container">
-      <h1>Cálculo de Taxa de Entrega</h1>
+    <!-- Toasts -->
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
-      <!-- Seção do Usuário -->
-      <section class="user-section" aria-labelledby="user-section-title">
-        <h2 id="user-section-title" class="visually-hidden">
-          Seção do Usuário
-        </h2>
-        <label for="autocomplete-container">Endereço de Destino:</label>
-        <div id="autocomplete-container" aria-required="true"></div>
-        <button id="calculate-btn">Calcular Taxa</button>
-        <div id="loading" class="loading hidden" aria-live="polite">
-          Carregando...
+    <!-- Sidebar overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- ══════════ SIDEBAR ══════════ -->
+    <aside id="sidebar" class="sidebar" aria-label="Configurações">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Configurações</span>
+        <button id="sidebar-close" class="icon-btn" aria-label="Fechar">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-scroll">
+        <!-- Faixas de distância -->
+        <section class="sb-section">
+          <h2 class="sb-section-title">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+            Faixas de Distância
+          </h2>
+          <p class="sb-desc">Preço cobrado conforme a distância calculada.</p>
+          <div id="ranges-list" role="list"></div>
+          <button id="add-range-btn" class="btn-outline-sm">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Adicionar Faixa
+          </button>
+        </section>
+
+        <div class="sb-divider"></div>
+
+        <!-- Taxa por rua específica -->
+        <section class="sb-section">
+          <h2 class="sb-section-title">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            Taxa por Rua
+          </h2>
+          <p class="sb-desc">
+            Taxa adicional somada à distância para ruas específicas.
+          </p>
+
+          <div id="street-fees-list" role="list"></div>
+
+          <div class="sb-form">
+            <label class="sb-label" for="street-autocomplete-container"
+              >Buscar rua</label
+            >
+            <div id="street-autocomplete-container"></div>
+            <label class="sb-label" for="street-fee-input"
+              >Taxa adicional (R$)</label
+            >
+            <input
+              type="number"
+              id="street-fee-input"
+              class="sb-input"
+              placeholder="Ex: 1.00"
+              step="0.01"
+              min="0"
+            />
+            <div
+              id="street-error"
+              class="inline-error hidden"
+              aria-live="assertive"
+            ></div>
+            <button id="add-street-btn" class="btn-outline-sm">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Adicionar Rua
+            </button>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- ══════════ MAIN ══════════ -->
+    <main class="main" id="main">
+      <!-- Config button (top right) -->
+      <button
+        id="sidebar-open"
+        class="config-btn"
+        aria-label="Abrir configurações"
+        aria-controls="sidebar"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+          />
+        </svg>
+      </button>
+
+      <!-- Hero search area -->
+      <div class="hero">
+        <div class="hero-logo" aria-hidden="true">
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
         </div>
-        <div id="result" class="result hidden" aria-live="assertive"></div>
-        <div id="error" class="error hidden" aria-live="assertive"></div>
-      </section>
+        <h1 class="hero-title">Taxa de Entrega</h1>
+        <p class="hero-subtitle">
+          Digite o endereço. Preferência por Campo Grande
+        </p>
 
-      <!-- Seção Administrativa Simples -->
-      <section class="admin-section" aria-labelledby="admin-section-title">
-        <h2 id="admin-section-title">Configuração de Faixas de Distância</h2>
-        <p>Adicione, edite ou exclua faixas de distância e preços.</p>
-        <div id="ranges-list" role="list"></div>
-        <button id="add-range-btn">Adicionar Nova Faixa</button>
-      </section>
-    </div>
+        <div class="search-box" id="search-box">
+          <div class="search-icon" aria-hidden="true">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+          <div id="autocomplete-container" class="search-input-wrap"></div>
+          <button
+            id="calculate-btn"
+            class="search-go-btn"
+            aria-label="Calcular taxa"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Result area -->
+        <div
+          id="loading"
+          class="status-msg loading-msg hidden"
+          aria-live="polite"
+        >
+          <span class="spinner"></span> Calculando…
+        </div>
+
+        <div
+          id="result"
+          class="result-card hidden"
+          aria-live="assertive"
+          tabindex="-1"
+        ></div>
+
+        <div
+          id="error"
+          class="error-msg hidden"
+          aria-live="assertive"
+          tabindex="-1"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span id="error-text"></span>
+        </div>
+      </div>
+    </main>
 
     <script src="taxas.js"></script>
   </body>

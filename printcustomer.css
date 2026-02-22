@@ -62,8 +62,8 @@ body {
 }
 
 .total {
-  display: flex;
-  justify-content: space-between;
+  display: block;
+  text-align: center;
   font-size: 16px;
   font-weight: bold;
   margin-top: 8px;

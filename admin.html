@@ -80,6 +80,11 @@
           <button class="nav-btn" data-section="pedidos">🛒 Pedidos</button>
         </nav>
 
+        <!-- BOTÃO CRIAR PEDIDO -->
+        <button class="btn-criar-pedido" onclick="abrirCriarPedido()">
+          ➕ Criar Pedido
+        </button>
+
         <button class="btn-logout" onclick="handleLogout()">🚪 Sair</button>
       </aside>
 
@@ -503,6 +508,214 @@
         <div class="modal-footer">
           <button class="btn-secondary" onclick="closeModalExcluirPedidos()">
             Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- OVERLAY CRIAR PEDIDO -->
+    <!-- ============================================ -->
+    <div
+      id="overlay-criar-pedido"
+      class="overlay-criar-pedido"
+      onclick="fecharCriarPedido()"
+    ></div>
+
+    <!-- ============================================ -->
+    <!-- SIDEBAR: CRIAR PEDIDO - CARDÁPIO -->
+    <!-- ============================================ -->
+    <aside id="sidebar-criar-pedido" class="sidebar-criar-pedido">
+      <div class="sidebar-criar-header">
+        <h2>➕ Criar Pedido</h2>
+        <button class="btn-fechar-criar" onclick="fecharCriarPedido()">
+          ✕
+        </button>
+      </div>
+
+      <!-- Filtro de categoria -->
+      <div class="criar-filtros">
+        <select id="criar-filter-cat" onchange="renderCriarCardapio()">
+          <option value="all">Todas as categorias</option>
+        </select>
+        <input
+          type="text"
+          id="criar-search"
+          placeholder="🔍 Buscar item..."
+          oninput="renderCriarCardapio()"
+        />
+      </div>
+
+      <!-- Lista do cardápio -->
+      <div id="criar-menu-list" class="criar-menu-list">
+        <div class="loading">Carregando cardápio...</div>
+      </div>
+
+      <!-- Carrinho Admin -->
+      <div
+        class="criar-cart-section"
+        id="criar-cart-section"
+        style="display: none"
+      >
+        <div class="criar-cart-header">
+          <h3>🛒 Carrinho (<span id="criar-cart-count">0</span>)</h3>
+          <button class="btn-limpar-carrinho" onclick="limparCarrinhoAdmin()">
+            Limpar
+          </button>
+        </div>
+        <div id="criar-cart-items" class="criar-cart-items"></div>
+        <div class="criar-cart-total">
+          <span>Total:</span>
+          <span id="criar-cart-total">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Footer com dados do pedido e botão enviar -->
+      <div class="criar-pedido-footer">
+        <input
+          type="text"
+          id="criar-nome-cliente"
+          placeholder="👤 Nome do cliente *"
+          class="criar-input"
+        />
+
+        <!-- Tipo de pedido -->
+        <div class="criar-tipo-toggle">
+          <button
+            type="button"
+            class="criar-tipo-btn active"
+            data-criar-tipo="retirada"
+            onclick="selecionarTipoCriar('retirada')"
+          >
+            🏪 Retirada
+          </button>
+          <button
+            type="button"
+            class="criar-tipo-btn"
+            data-criar-tipo="delivery"
+            onclick="selecionarTipoCriar('delivery')"
+          >
+            🛵 Entrega
+          </button>
+          <button
+            type="button"
+            class="criar-tipo-btn"
+            data-criar-tipo="mesa"
+            onclick="selecionarTipoCriar('mesa')"
+          >
+            🍽️ Mesa
+          </button>
+        </div>
+
+        <!-- Campos de entrega (ocultos por padrão) -->
+        <div id="criar-delivery-fields" style="display: none">
+          <select id="criar-bairro" class="criar-input">
+            <option value="">Selecione o bairro...</option>
+            <option value="Água Fria" data-fee="6">Água Fria - R$ 6,00</option>
+            <option value="Arruda" data-fee="5">Arruda - R$ 5,00</option>
+            <option value="Cajueiro" data-fee="6">Cajueiro - R$ 6,00</option>
+            <option value="Campo Grande" data-fee="0">
+              Campo Grande - Taxa a combinar
+            </option>
+            <option value="Campina do Barreto" data-fee="5">
+              Campina do Barreto - R$ 5,00
+            </option>
+            <option value="Encruzilhada" data-fee="5">
+              Encruzilhada - R$ 5,00
+            </option>
+            <option value="Hipódromo" data-fee="6">Hipódromo - R$ 6,00</option>
+            <option value="Peixinhos" data-fee="5">Peixinhos - R$ 5,00</option>
+            <option value="Salgadinho" data-fee="5">
+              Salgadinho - R$ 5,00
+            </option>
+            <option value="Sítio Novo" data-fee="3">
+              Sítio Novo - R$ 3,00
+            </option>
+            <option value="Torreão" data-fee="6">Torreão - R$ 6,00</option>
+          </select>
+          <input
+            type="text"
+            id="criar-rua"
+            placeholder="Rua / Av *"
+            class="criar-input"
+          />
+          <input
+            type="text"
+            id="criar-numero"
+            placeholder="Nº *"
+            class="criar-input"
+          />
+          <input
+            type="text"
+            id="criar-complemento"
+            placeholder="Complemento"
+            class="criar-input"
+          />
+        </div>
+
+        <!-- Campo mesa -->
+        <div id="criar-mesa-field" style="display: none">
+          <input
+            type="text"
+            id="criar-mesa"
+            placeholder="🍽️ Número da Mesa *"
+            class="criar-input"
+          />
+        </div>
+
+        <!-- Pagamento -->
+        <select id="criar-pagamento" class="criar-input">
+          <option value="">💳 Forma de Pagamento *</option>
+          <option value="PIX">💚 PIX</option>
+          <option value="Dinheiro">💵 Dinheiro</option>
+          <option value="Débito">💳 Débito</option>
+          <option value="Crédito">💳 Crédito</option>
+        </select>
+
+        <!-- Troco (oculto por padrão) -->
+        <div id="criar-troco-field" style="display: none">
+          <input
+            type="text"
+            id="criar-troco"
+            placeholder="Troco para R$..."
+            class="criar-input"
+          />
+        </div>
+
+        <button class="btn-enviar-pedido-admin" onclick="enviarPedidoAdmin()">
+          📤 ENVIAR PEDIDO
+        </button>
+      </div>
+    </aside>
+
+    <!-- ============================================ -->
+    <!-- MODAL: PERSONALIZAÇÃO DE ITEM (STEPS) -->
+    <!-- ============================================ -->
+    <div id="modal-criar-steps" class="modal-criar-steps">
+      <div class="modal-criar-steps-content">
+        <div class="modal-criar-steps-header">
+          <h3 id="criar-step-title">Personalizar</h3>
+          <div class="criar-progress-dots" id="criar-progress-dots"></div>
+          <button class="btn-fechar-criar" onclick="fecharStepsModal()">
+            ✕
+          </button>
+        </div>
+        <div id="criar-step-body" class="criar-step-body"></div>
+        <div class="modal-criar-steps-footer">
+          <button
+            class="btn-step-back"
+            id="btn-criar-back"
+            onclick="criarStepBack()"
+            style="display: none"
+          >
+            ← Voltar
+          </button>
+          <button
+            class="btn-step-next"
+            id="btn-criar-next"
+            onclick="criarStepNext()"
+          >
+            Próximo →
           </button>
         </div>
       </div>

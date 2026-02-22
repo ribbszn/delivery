@@ -2366,3 +2366,796 @@ function sendWhatsApp() {
 
   console.log("✅ Mensagem enviada para WhatsApp");
 }
+
+// ================================================================
+// CRIAR PEDIDO (ADMIN) - SISTEMA COMPLETO
+// ================================================================
+
+// Estado do criar pedido
+const AdminPedido = {
+  cardapioData: null, // cardapio.json mesclado
+  menuAvailability: {},
+  ingredientsAvailability: {},
+  paidExtrasAvailability: {},
+  cart: [],
+  tipo: "retirada", // "retirada" | "delivery" | "mesa"
+  deliveryFee: 0,
+
+  // Steps flow
+  stepsData: [],
+  currentStep: 0,
+  tempItem: null,
+};
+
+// ================================================================
+// ABRIR / FECHAR CRIAR PEDIDO
+// ================================================================
+
+async function abrirCriarPedido() {
+  document.getElementById("overlay-criar-pedido").classList.add("active");
+  document.getElementById("sidebar-criar-pedido").classList.add("active");
+
+  // Carregar cardápio e disponibilidade se ainda não carregou
+  if (!AdminPedido.cardapioData) {
+    await carregarCardapioAdmin();
+  }
+
+  renderCriarCardapio();
+}
+
+function fecharCriarPedido() {
+  document.getElementById("overlay-criar-pedido").classList.remove("active");
+  document.getElementById("sidebar-criar-pedido").classList.remove("active");
+}
+
+// ================================================================
+// CARREGAR CARDÁPIO PARA O ADMIN PEDIDO
+// ================================================================
+
+async function carregarCardapioAdmin() {
+  try {
+    const db = firebase.database();
+    const response = await fetch("./cardapio.json");
+    const jsonMenu = await response.json();
+
+    // Carregar disponibilidade
+    const [menuSnap, ingredSnap, extrasSnap] = await Promise.all([
+      db.ref("menuAvailability").once("value"),
+      db.ref("ingredientsAvailability").once("value"),
+      db.ref("paidExtrasAvailability").once("value"),
+    ]);
+
+    AdminPedido.menuAvailability = menuSnap.val() || {};
+    AdminPedido.ingredientsAvailability = ingredSnap.val() || {};
+    AdminPedido.paidExtrasAvailability = extrasSnap.val() || {};
+
+    // Mesclar dados (similar ao mergeMenuData existente)
+    AdminPedido.cardapioData = {};
+    Object.entries(jsonMenu).forEach(([categoria, items]) => {
+      AdminPedido.cardapioData[categoria] = items.map((item) => ({
+        ...item,
+        categoria,
+      }));
+    });
+
+    // Popular filtro de categorias
+    const select = document.getElementById("criar-filter-cat");
+    let options = '<option value="all">Todas as categorias</option>';
+    Object.keys(AdminPedido.cardapioData).forEach((cat) => {
+      options += `<option value="${cat}">${cat}</option>`;
+    });
+    select.innerHTML = options;
+
+    console.log("✅ Cardápio admin carregado");
+  } catch (err) {
+    console.error("❌ Erro ao carregar cardápio admin:", err);
+    document.getElementById("criar-menu-list").innerHTML =
+      '<div class="empty-state"><p class="empty-state-text">Erro ao carregar cardápio</p></div>';
+  }
+}
+
+// ================================================================
+// RENDERIZAR LISTA DO CARDÁPIO NO SIDEBAR
+// ================================================================
+
+function renderCriarCardapio() {
+  if (!AdminPedido.cardapioData) return;
+
+  const listEl = document.getElementById("criar-menu-list");
+  const catFilter = document.getElementById("criar-filter-cat").value;
+  const searchQuery = document
+    .getElementById("criar-search")
+    .value.toLowerCase()
+    .trim();
+
+  let html = "";
+
+  Object.entries(AdminPedido.cardapioData).forEach(([categoria, items]) => {
+    if (catFilter !== "all" && catFilter !== categoria) return;
+
+    items.forEach((item) => {
+      if (searchQuery && !item.nome.toLowerCase().includes(searchQuery)) return;
+
+      const itemKey = `${categoria}:${item.nome}`;
+      const isUnavailable = AdminPedido.menuAvailability[itemKey] === false;
+      const imgSrc = item.img || "./img/placeholder.png";
+
+      const precos = Array.isArray(item.precoBase)
+        ? item.precoBase
+        : [item.precoBase];
+      const opcoes = item.opcoes && item.opcoes.length > 0 ? item.opcoes : null;
+
+      if (opcoes) {
+        // Múltiplas opções: renderizar botões por opção
+        let botoesHtml = "";
+        opcoes.forEach((opcao, idx) => {
+          const preco = precos[idx] || precos[0] || 0;
+          const optKey = `${categoria}:${item.nome}:${opcao}`;
+          const optUnavail = AdminPedido.menuAvailability[optKey] === false;
+
+          botoesHtml += `
+            <button
+              class="criar-opcao-btn ${optUnavail || isUnavailable ? "unavailable" : ""}"
+              onclick="iniciarItemAdmin('${categoria}', ${items.indexOf(item)}, ${idx})"
+            >
+              ${opcao} — R$ ${preco.toFixed(2).replace(".", ",")}
+            </button>
+          `;
+        });
+
+        html += `
+          <div class="criar-menu-item ${isUnavailable ? "unavailable" : ""}">
+            <img src="${imgSrc}" alt="${item.nome}" onerror="this.src='./img/placeholder.png'" />
+            <div class="criar-menu-item-info">
+              <h4>${item.nome}</h4>
+              <span class="cat-badge">${categoria}</span>
+              <div class="criar-opcoes-btns" style="margin-top:4px;">${botoesHtml}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Item simples — clique direto
+        const preco = precos[0] || 0;
+        html += `
+          <div class="criar-menu-item ${isUnavailable ? "unavailable" : ""}"
+               onclick="iniciarItemAdmin('${categoria}', ${items.indexOf(item)}, 0)">
+            <img src="${imgSrc}" alt="${item.nome}" onerror="this.src='./img/placeholder.png'" />
+            <div class="criar-menu-item-info">
+              <h4>${item.nome}</h4>
+              <span class="cat-badge">${categoria}</span>
+              <div class="preco-badge">R$ ${preco.toFixed(2).replace(".", ",")}</div>
+            </div>
+          </div>
+        `;
+      }
+    });
+  });
+
+  listEl.innerHTML =
+    html ||
+    '<div class="empty-state"><p class="empty-state-text">Nenhum item encontrado</p></div>';
+}
+
+// ================================================================
+// INICIAR FLOW DE PERSONALIZAÇÃO
+// ================================================================
+
+function iniciarItemAdmin(categoria, itemIdx, opcaoIdx) {
+  const item = AdminPedido.cardapioData[categoria][itemIdx];
+  if (!item) return;
+
+  const opcoes = item.opcoes && item.opcoes.length > 0 ? item.opcoes : null;
+  const precos = Array.isArray(item.precoBase)
+    ? item.precoBase
+    : [item.precoBase];
+
+  const selectedSize = opcoes ? opcoes[opcaoIdx] : item.nome;
+  const selectedPrice = precos[opcaoIdx] ?? precos[0] ?? 0;
+
+  AdminPedido.tempItem = {
+    nome: item.nome,
+    img: item.img,
+    categoria,
+    selectedSize: opcoes ? selectedSize : null,
+    selectedPrice,
+    finalPrice: selectedPrice,
+    meatPoint: null,
+    selectedCaldas: [],
+    removed: [],
+    added: [],
+    obs: "",
+    quantity: 1,
+  };
+
+  // Construir steps (igual ao buildStepsForItem do app.js)
+  AdminPedido.stepsData = buildAdminSteps(item, selectedSize);
+  AdminPedido.currentStep = 0;
+
+  if (AdminPedido.stepsData.length === 0) {
+    adicionarAoCarrinhoAdmin();
+    return;
+  }
+
+  abrirStepsModal();
+  renderAdminStep();
+}
+
+// ================================================================
+// BUILD STEPS (baseado em buildStepsForItem do app.js)
+// ================================================================
+
+function buildAdminSteps(item, selectedSize) {
+  const steps = [];
+
+  // Ponto da carne
+  if (item.pontoCarne) {
+    steps.push({ type: "meatPoint", data: item.pontoCarne });
+  }
+
+  // Caldas
+  if (item.caldas && Array.isArray(item.caldas)) {
+    steps.push({ type: "caldas", data: item.caldas });
+  }
+
+  // Ingredientes para retirar
+  let ingredients = [];
+  if (item.ingredientesPorOpcao && item.ingredientesPorOpcao[selectedSize]) {
+    ingredients = item.ingredientesPorOpcao[selectedSize];
+  } else if (item.ingredientesPadrao) {
+    ingredients = item.ingredientesPadrao;
+  } else {
+    if (Array.isArray(item.retiradas)) ingredients.push(...item.retiradas);
+    if (Array.isArray(item.ingredientes))
+      ingredients.push(...item.ingredientes);
+    if (Array.isArray(item.simplesIngredients))
+      ingredients.push(...item.simplesIngredients);
+    if (Array.isArray(item.duploIngredients))
+      ingredients.push(...item.duploIngredients);
+  }
+
+  const uniqueIng = [...new Set(ingredients)].filter((i) => i && i.trim());
+  if (uniqueIng.length > 0) {
+    steps.push({ type: "retiradas", data: uniqueIng });
+  }
+
+  // Adicionais pagos (filtrar indisponíveis)
+  const extras = item.paidExtras || item.adicionais || item.extras || [];
+  const availExtras = extras.filter(
+    (e) => AdminPedido.paidExtrasAvailability[e.nome] !== false,
+  );
+  if (availExtras.length > 0) {
+    steps.push({ type: "extras", data: availExtras });
+  }
+
+  // Observações
+  steps.push({ type: "observacoes" });
+
+  return steps;
+}
+
+// ================================================================
+// MODAL DE STEPS
+// ================================================================
+
+function abrirStepsModal() {
+  document.getElementById("modal-criar-steps").classList.add("active");
+}
+
+function fecharStepsModal() {
+  document.getElementById("modal-criar-steps").classList.remove("active");
+  AdminPedido.tempItem = null;
+  AdminPedido.stepsData = [];
+}
+
+function renderAdminStep() {
+  const step = AdminPedido.stepsData[AdminPedido.currentStep];
+  const title = document.getElementById("criar-step-title");
+  const body = document.getElementById("criar-step-body");
+  const dotsEl = document.getElementById("criar-progress-dots");
+  const btnBack = document.getElementById("btn-criar-back");
+  const btnNext = document.getElementById("btn-criar-next");
+
+  // Dots de progresso
+  dotsEl.innerHTML = AdminPedido.stepsData
+    .map(
+      (_, i) =>
+        `<div class="dot ${i === AdminPedido.currentStep ? "active" : ""}"></div>`,
+    )
+    .join("");
+
+  // Botão voltar
+  btnBack.style.display = AdminPedido.currentStep > 0 ? "block" : "none";
+
+  // Texto do botão próximo
+  const isLast = AdminPedido.currentStep === AdminPedido.stepsData.length - 1;
+  btnNext.textContent = isLast ? "✅ ADICIONAR AO CARRINHO" : "Próximo →";
+
+  // Renderizar step
+  const displayName = AdminPedido.tempItem.nome;
+
+  switch (step.type) {
+    case "meatPoint":
+      title.textContent = `${displayName} – Ponto da Carne 🥩`;
+      body.innerHTML = step.data
+        .map(
+          (opt, i) => `
+          <div class="option-row">
+            <label for="ap-meat-${i}">${opt}</label>
+            <input type="radio" id="ap-meat-${i}" name="ap-meatPoint" value="${opt}"
+              ${AdminPedido.tempItem.meatPoint === opt ? "checked" : ""}>
+          </div>
+        `,
+        )
+        .join("");
+      body.querySelectorAll("input").forEach((inp) => {
+        inp.onchange = (e) => (AdminPedido.tempItem.meatPoint = e.target.value);
+      });
+      break;
+
+    case "caldas":
+      title.textContent = `${displayName} – Calda 🍯`;
+      body.innerHTML = step.data
+        .map(
+          (opt, i) => `
+          <div class="option-row">
+            <label for="ap-calda-${i}">${opt}</label>
+            <input type="radio" id="ap-calda-${i}" name="ap-calda" value="${opt}"
+              ${AdminPedido.tempItem.selectedCaldas.includes(opt) ? "checked" : ""}>
+          </div>
+        `,
+        )
+        .join("");
+      body.querySelectorAll("input").forEach((inp) => {
+        inp.onchange = (e) => {
+          AdminPedido.tempItem.selectedCaldas = [e.target.value];
+        };
+      });
+      break;
+
+    case "retiradas":
+      title.textContent = `${displayName} – Retirar Ingredientes ❌`;
+      const availIng = step.data.filter(
+        (ing) => AdminPedido.ingredientsAvailability[ing] !== false,
+      );
+      body.innerHTML =
+        availIng.length === 0
+          ? '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">Nenhum ingrediente disponível para retirar.</p>'
+          : availIng
+              .map(
+                (ing, i) => `
+            <div class="option-row">
+              <label for="ap-ing-${i}">${ing}</label>
+              <input type="checkbox" id="ap-ing-${i}" value="${ing}"
+                ${AdminPedido.tempItem.removed.includes(ing) ? "checked" : ""}>
+            </div>
+          `,
+              )
+              .join("");
+      body.querySelectorAll("input[type=checkbox]").forEach((inp) => {
+        inp.onchange = (e) => {
+          if (e.target.checked) {
+            if (!AdminPedido.tempItem.removed.includes(e.target.value))
+              AdminPedido.tempItem.removed.push(e.target.value);
+          } else {
+            AdminPedido.tempItem.removed = AdminPedido.tempItem.removed.filter(
+              (v) => v !== e.target.value,
+            );
+          }
+        };
+      });
+      break;
+
+    case "extras":
+      title.textContent = `${displayName} – Adicionais Pagos 💰`;
+      const availExtras = step.data.filter(
+        (e) => AdminPedido.paidExtrasAvailability[e.nome] !== false,
+      );
+      body.innerHTML =
+        availExtras.length === 0
+          ? '<p style="color:var(--text-secondary);text-align:center;padding:20px 0;">Nenhum adicional disponível.</p>'
+          : availExtras
+              .map((extra, i) => {
+                const isChecked = AdminPedido.tempItem.added.some(
+                  (a) => a.nome === extra.nome,
+                );
+                return `
+              <div class="option-row">
+                <label for="ap-extra-${i}">
+                  ${extra.nome} <span style="color:var(--primary);">+R$ ${extra.preco.toFixed(2).replace(".", ",")}</span>
+                </label>
+                <input type="checkbox" id="ap-extra-${i}" value="${i}" ${isChecked ? "checked" : ""}>
+              </div>
+            `;
+              })
+              .join("");
+      body.querySelectorAll("input[type=checkbox]").forEach((inp) => {
+        inp.onchange = (e) => {
+          const idx = parseInt(e.target.value);
+          const extra = availExtras[idx];
+          if (e.target.checked) {
+            if (!AdminPedido.tempItem.added.some((a) => a.nome === extra.nome))
+              AdminPedido.tempItem.added.push({
+                nome: extra.nome,
+                preco: extra.preco,
+              });
+          } else {
+            AdminPedido.tempItem.added = AdminPedido.tempItem.added.filter(
+              (a) => a.nome !== extra.nome,
+            );
+          }
+        };
+      });
+      break;
+
+    case "observacoes":
+      title.textContent = `${displayName} – Observações 💬`;
+      body.innerHTML = `
+        <textarea id="ap-obs" placeholder="Observação especial...">${AdminPedido.tempItem.obs || ""}</textarea>
+      `;
+      body.querySelector("textarea").oninput = (e) => {
+        AdminPedido.tempItem.obs = e.target.value;
+      };
+      break;
+  }
+}
+
+function criarStepNext() {
+  const step = AdminPedido.stepsData[AdminPedido.currentStep];
+
+  // Validação de calda obrigatória
+  if (
+    step.type === "caldas" &&
+    AdminPedido.tempItem.selectedCaldas.length === 0
+  ) {
+    adminToast("⚠️ Escolha uma calda antes de continuar");
+    return;
+  }
+
+  if (AdminPedido.currentStep < AdminPedido.stepsData.length - 1) {
+    AdminPedido.currentStep++;
+    renderAdminStep();
+  } else {
+    // Finalizar item
+    const extrasTotal = AdminPedido.tempItem.added.reduce(
+      (s, a) => s + a.preco,
+      0,
+    );
+    AdminPedido.tempItem.finalPrice =
+      AdminPedido.tempItem.selectedPrice + extrasTotal;
+
+    adicionarAoCarrinhoAdmin();
+    fecharStepsModal();
+  }
+}
+
+function criarStepBack() {
+  if (AdminPedido.currentStep > 0) {
+    AdminPedido.currentStep--;
+    renderAdminStep();
+  }
+}
+
+// ================================================================
+// CARRINHO ADMIN
+// ================================================================
+
+function adicionarAoCarrinhoAdmin() {
+  const item = { ...AdminPedido.tempItem };
+
+  // Tentar agrupar se idêntico (sem personalização)
+  const idx = AdminPedido.cart.findIndex(
+    (c) =>
+      c.nome === item.nome &&
+      c.selectedSize === item.selectedSize &&
+      JSON.stringify(c.removed) === JSON.stringify(item.removed) &&
+      JSON.stringify(c.added) === JSON.stringify(item.added) &&
+      c.meatPoint === item.meatPoint &&
+      JSON.stringify(c.selectedCaldas) ===
+        JSON.stringify(item.selectedCaldas) &&
+      c.obs === item.obs,
+  );
+
+  if (idx > -1) {
+    AdminPedido.cart[idx].quantity++;
+  } else {
+    AdminPedido.cart.push({ ...item, quantity: 1 });
+  }
+
+  adminToast(`✅ ${item.nome} adicionado!`);
+  renderCarrinhoAdmin();
+}
+
+function limparCarrinhoAdmin() {
+  if (!confirm("Limpar o carrinho?")) return;
+  AdminPedido.cart = [];
+  renderCarrinhoAdmin();
+}
+
+function alterarQtdAdmin(idx, delta) {
+  AdminPedido.cart[idx].quantity += delta;
+  if (AdminPedido.cart[idx].quantity <= 0) {
+    AdminPedido.cart.splice(idx, 1);
+  }
+  renderCarrinhoAdmin();
+}
+
+function renderCarrinhoAdmin() {
+  const cartSection = document.getElementById("criar-cart-section");
+  const countEl = document.getElementById("criar-cart-count");
+  const totalEl = document.getElementById("criar-cart-total");
+  const itemsEl = document.getElementById("criar-cart-items");
+
+  if (AdminPedido.cart.length === 0) {
+    cartSection.style.display = "none";
+    return;
+  }
+
+  cartSection.style.display = "block";
+  countEl.textContent = AdminPedido.cart.reduce((s, i) => s + i.quantity, 0);
+
+  let total = AdminPedido.cart.reduce(
+    (s, i) => s + i.finalPrice * i.quantity,
+    0,
+  );
+  total += AdminPedido.deliveryFee;
+  totalEl.textContent = `R$ ${total.toFixed(2).replace(".", ",")}`;
+
+  itemsEl.innerHTML = AdminPedido.cart
+    .map((item, idx) => {
+      const nomeComOpcao = item.selectedSize
+        ? `${item.nome} (${item.selectedSize})`
+        : item.nome;
+
+      // Detalhes
+      const detalhes = [];
+      if (item.meatPoint) detalhes.push(`🥩 ${item.meatPoint}`);
+      if (item.selectedCaldas && item.selectedCaldas.length)
+        detalhes.push(`🍯 ${item.selectedCaldas.join(", ")}`);
+      if (item.removed && item.removed.length)
+        detalhes.push(`❌ Sem: ${item.removed.join(", ")}`);
+      if (item.added && item.added.length)
+        detalhes.push(`➕ ${item.added.map((a) => a.nome).join(", ")}`);
+      if (item.obs) detalhes.push(`💬 ${item.obs}`);
+
+      return `
+        <div class="criar-cart-item">
+          <div class="criar-cart-item-info">
+            <div class="item-nome">${nomeComOpcao}</div>
+            ${detalhes.length ? `<div class="item-detalhe">${detalhes.join(" • ")}</div>` : ""}
+          </div>
+          <div class="criar-cart-item-actions">
+            <button class="btn-qtd" onclick="alterarQtdAdmin(${idx}, -1)">−</button>
+            <span style="color:var(--text-secondary);font-size:0.82rem;">${item.quantity}x</span>
+            <button class="btn-qtd" onclick="alterarQtdAdmin(${idx}, 1)">+</button>
+            <span class="preco">R$ ${(item.finalPrice * item.quantity).toFixed(2).replace(".", ",")}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// ================================================================
+// TIPO DE PEDIDO (RETIRADA / DELIVERY / MESA)
+// ================================================================
+
+function selecionarTipoCriar(tipo) {
+  AdminPedido.tipo = tipo;
+  AdminPedido.deliveryFee = 0;
+
+  document.querySelectorAll(".criar-tipo-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.criarTipo === tipo);
+  });
+
+  document.getElementById("criar-delivery-fields").style.display =
+    tipo === "delivery" ? "flex" : "none";
+  document.getElementById("criar-delivery-fields").style.flexDirection =
+    "column";
+  document.getElementById("criar-delivery-fields").style.gap = "8px";
+
+  document.getElementById("criar-mesa-field").style.display =
+    tipo === "mesa" ? "block" : "none";
+
+  // Listener de taxa de entrega ao trocar bairro
+  if (tipo === "delivery") {
+    document.getElementById("criar-bairro").onchange = (e) => {
+      const opt = e.target.selectedOptions[0];
+      AdminPedido.deliveryFee = parseFloat(opt.dataset.fee || 0) || 0;
+      renderCarrinhoAdmin();
+    };
+  }
+}
+
+// ================================================================
+// ENVIAR PEDIDO ADMIN
+// ================================================================
+
+async function enviarPedidoAdmin() {
+  if (AdminPedido.cart.length === 0) {
+    adminToast("⚠️ Adicione ao menos um item ao carrinho");
+    return;
+  }
+
+  const nome = document.getElementById("criar-nome-cliente").value.trim();
+  if (!nome) {
+    adminToast("⚠️ Informe o nome do cliente");
+    return;
+  }
+
+  const pagamento = document.getElementById("criar-pagamento").value;
+  if (!pagamento) {
+    adminToast("⚠️ Selecione a forma de pagamento");
+    return;
+  }
+
+  // Validações por tipo
+  if (AdminPedido.tipo === "delivery") {
+    const bairro = document.getElementById("criar-bairro").value;
+    const rua = document.getElementById("criar-rua").value.trim();
+    const numero = document.getElementById("criar-numero").value.trim();
+    if (!bairro || !rua || !numero) {
+      adminToast("⚠️ Preencha o bairro, rua e número");
+      return;
+    }
+  }
+
+  if (AdminPedido.tipo === "mesa") {
+    const mesa = document.getElementById("criar-mesa").value.trim();
+    if (!mesa) {
+      adminToast("⚠️ Informe o número da mesa");
+      return;
+    }
+  }
+
+  // Montar itens no formato esperado pelo KDS
+  const itens = AdminPedido.cart.map((item) => {
+    const obs = [];
+    if (item.meatPoint) obs.push(`Ponto: ${item.meatPoint}`);
+    if (item.selectedCaldas && item.selectedCaldas.length)
+      obs.push(`Caldas: ${item.selectedCaldas.join(", ")}`);
+    if (item.removed && item.removed.length)
+      obs.push(`Sem: ${item.removed.join(", ")}`);
+    if (item.added && item.added.length)
+      obs.push(`Adicionais: ${item.added.map((a) => a.nome).join(", ")}`);
+    if (item.obs) obs.push(item.obs);
+
+    const itemFormatado = {
+      nome: item.nome,
+      preco: item.selectedPrice || 0,
+      precoTotal: item.finalPrice,
+      quantidade: item.quantity || 1,
+      qtd: item.quantity || 1,
+    };
+
+    if (item.selectedSize) itemFormatado.opcao = item.selectedSize;
+    if (obs.length) itemFormatado.observacao = obs.join(" | ");
+    if (item.meatPoint) itemFormatado.ponto = item.meatPoint;
+    if (item.removed && item.removed.length)
+      itemFormatado.retiradas = item.removed;
+    if (item.added && item.added.length)
+      itemFormatado.adicionais = item.added.map((a) => ({
+        nome: a.nome,
+        preco: a.preco,
+      }));
+
+    return itemFormatado;
+  });
+
+  const total =
+    AdminPedido.cart.reduce((s, i) => s + i.finalPrice * i.quantity, 0) +
+    AdminPedido.deliveryFee;
+
+  const pedido = {
+    tipo: "balcao",
+    tipoOrigem: "admin",
+    status: "pending",
+    nomeCliente: nome,
+    cliente: nome,
+    nome: nome,
+    pagamento,
+    itens,
+    total,
+    timestamp: Date.now(),
+    dataHora: new Date().toLocaleString("pt-BR"),
+    aceito: true, // Pedido criado pelo admin já está aceito
+  };
+
+  // Modo de consumo
+  if (AdminPedido.tipo === "delivery") {
+    const bairro =
+      document
+        .getElementById("criar-bairro")
+        .selectedOptions[0]?.textContent.split(" - ")[0] || "";
+    const rua = document.getElementById("criar-rua").value.trim();
+    const numero = document.getElementById("criar-numero").value.trim();
+    const comp = document.getElementById("criar-complemento").value.trim();
+    pedido.modoConsumo = "🛵 ENTREGA";
+    pedido.bairro = bairro;
+    pedido.endereco = `${rua}, ${numero}${comp ? " - " + comp : ""}`;
+    if (AdminPedido.deliveryFee > 0)
+      pedido.taxaEntrega = AdminPedido.deliveryFee;
+  } else if (AdminPedido.tipo === "mesa") {
+    const mesa = document.getElementById("criar-mesa").value.trim();
+    pedido.modoConsumo = "🍽️ MESA";
+    pedido.mesa = mesa;
+    pedido.endereco = `Mesa ${mesa}`;
+  } else {
+    pedido.modoConsumo = "🏪 RETIRADA";
+    pedido.endereco = "RETIRADA NO LOCAL";
+  }
+
+  // Troco
+  const troco = document.getElementById("criar-troco")?.value.trim();
+  if (pagamento === "Dinheiro" && troco) {
+    pedido.troco = `Troco para R$ ${troco}`;
+  }
+
+  try {
+    const db = firebase.database();
+    const ref = db.ref("pedidos").push();
+    await ref.set(pedido);
+
+    adminToast("✅ Pedido criado com sucesso!");
+
+    // Resetar formulário
+    AdminPedido.cart = [];
+    AdminPedido.deliveryFee = 0;
+    document.getElementById("criar-nome-cliente").value = "";
+    document.getElementById("criar-pagamento").value = "";
+    document.getElementById("criar-troco").value = "";
+    document.getElementById("criar-bairro").value = "";
+    document.getElementById("criar-rua").value = "";
+    document.getElementById("criar-numero").value = "";
+    document.getElementById("criar-complemento").value = "";
+    document.getElementById("criar-mesa").value = "";
+    selecionarTipoCriar("retirada");
+    renderCarrinhoAdmin();
+
+    // Recarregar pedidos ativos se na seção início
+    const secaoAtiva = document.querySelector(".content-section.active");
+    if (secaoAtiva && secaoAtiva.id === "section-inicio") {
+      setTimeout(() => loadPedidosAtivos(), 800);
+    }
+
+    // Fechar sidebar após sucesso
+    setTimeout(() => fecharCriarPedido(), 1200);
+  } catch (err) {
+    console.error("❌ Erro ao criar pedido:", err);
+    adminToast("❌ Erro ao criar pedido. Tente novamente.");
+  }
+}
+
+// ================================================================
+// TOAST DO ADMIN
+// ================================================================
+
+function adminToast(message) {
+  let container = document.getElementById("admin-toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "admin-toast-container";
+    container.className = "admin-toast-container";
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = "admin-toast";
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ================================================================
+// MOSTRAR/OCULTAR CAMPO TROCO
+// ================================================================
+
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "criar-pagamento") {
+    const trocoField = document.getElementById("criar-troco-field");
+    if (trocoField) {
+      trocoField.style.display =
+        e.target.value === "Dinheiro" ? "block" : "none";
+    }
+  }
+});

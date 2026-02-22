@@ -2023,10 +2023,13 @@ button {
 
   .print-customer .total {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
     font-size: 16px;
     font-weight: bold;
     margin-top: 8px;
+    gap: 2px;
   }
 
   .print-customer .footer {
@@ -2533,4 +2536,624 @@ button {
   color: var(--text-muted);
   margin-top: 4px;
   line-height: 1.4;
+}
+
+/* ================================================================
+   ADD ITEM MODAL — Catálogo + Steps
+   ================================================================ */
+
+.kds-add-item-content {
+  max-width: 640px;
+  width: 95%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.ai-modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: #111;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+/* Catálogo de categorias */
+.ai-category {
+  margin-bottom: 24px;
+}
+
+.ai-category-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.ai-item-btn {
+  background: #1a1a1a;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-item-btn:hover {
+  border-color: var(--primary);
+  background: rgba(255, 193, 7, 0.08);
+  transform: translateY(-2px);
+}
+
+.ai-item-btn.ai-unavailable {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(80%);
+}
+
+.ai-item-name {
+  font-weight: 700;
+  color: #fff;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.ai-item-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ai-item-price {
+  font-size: 0.9rem;
+  color: var(--primary);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Steps de personalização */
+.ai-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+
+.ai-option-row:hover {
+  background: rgba(255, 193, 7, 0.05);
+  border-color: var(--primary);
+}
+
+.ai-option-row input[type="radio"],
+.ai-option-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Progress dots */
+.ai-progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ai-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all 0.2s ease;
+}
+
+.ai-dot.active {
+  background: var(--primary);
+  transform: scale(1.3);
+}
+
+/* Footer buttons */
+.ai-footer-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Botões do card: Add Item e Desconto */
+.btn-add-item {
+  background: linear-gradient(135deg, #1565c0, #1976d2);
+  color: #fff;
+  font-size: 0.82rem;
+}
+
+.btn-add-item:hover {
+  background: linear-gradient(135deg, #1976d2, #1e88e5);
+  transform: translateY(-1px);
+}
+
+.btn-discount {
+  background: linear-gradient(135deg, #6a1b9a, #7b1fa2);
+  color: #fff;
+  font-size: 0.82rem;
+}
+
+.btn-discount:hover {
+  background: linear-gradient(135deg, #7b1fa2, #8e24aa);
+  transform: translateY(-1px);
+}
+
+/* Preço riscado + desconto no card */
+.item-preco-original {
+  text-decoration: line-through;
+  color: #888;
+  font-size: 0.82rem;
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+.item-preco-desconto {
+  color: var(--secondary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+/* ================================================================
+   DISCOUNT MODAL
+   ================================================================ */
+
+.kds-discount-content {
+  max-width: 460px;
+  width: 95%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.disc-item-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 13px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.92rem;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.disc-item-btn:hover {
+  border-color: var(--primary);
+  background: rgba(255, 193, 7, 0.07);
+}
+
+.disc-item-btn.selected {
+  border-color: var(--primary);
+  background: rgba(255, 193, 7, 0.12);
+}
+
+.disc-item-arrow {
+  font-size: 1.2rem;
+  color: var(--primary);
+}
+
+/* Preço riscado + desconto na impressão do cliente */
+.print-preco-original {
+  text-decoration: line-through;
+  color: #666;
+}
+
+.item-detail-discount {
+  margin: 5px 0 5px 10px;
+  font-size: 12px;
+  padding: 3px 0;
+  border-left: 2px solid #999;
+  padding-left: 8px;
+}
+
+/* ================================================================
+   PREÇOS NOS ITENS DO CARD
+   ================================================================ */
+
+/* Preço base do item (sem desconto) */
+.item-preco {
+  color: var(--primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+/* Label "Retirar:" em vermelho suave */
+.item-detail-label {
+  font-weight: 600;
+  display: inline-block;
+  min-width: 90px;
+}
+
+.item-detail-label.retirar {
+  color: #ff6b6b;
+}
+
+.item-detail-label.adicionais {
+  color: #69db7c;
+}
+
+/* Preço do adicional pago inline */
+.item-adicional-preco {
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* ================================================================
+   CRIAR PEDIDO — NEW ORDER MODAL
+   ================================================================ */
+
+/* Sidebar button highlight */
+.sidebar-btn-new-order {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 193, 7, 0.15),
+    rgba(255, 193, 7, 0.06)
+  );
+  border: 1px solid rgba(255, 193, 7, 0.4) !important;
+  color: var(--primary) !important;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.sidebar-btn-new-order:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 193, 7, 0.26),
+    rgba(255, 193, 7, 0.12)
+  ) !important;
+  box-shadow: 0 0 18px rgba(255, 193, 7, 0.22);
+  transform: none;
+}
+
+/* Modal dimensions */
+.new-order-modal .modal-content {
+  max-width: 660px;
+  width: 96vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+.new-order-body {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
+}
+.new-order-footer {
+  border-top: 1px solid var(--border);
+  padding: 14px 0 0;
+  margin-top: 10px;
+  flex-shrink: 0;
+}
+.no-footer-row {
+  display: flex;
+  gap: 10px;
+}
+
+/* Step 1 — Tipo */
+.no-desc {
+  color: var(--text-muted);
+  font-size: 0.93rem;
+  margin-bottom: 18px;
+}
+.no-tipo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.no-tipo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 30px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.no-tipo-btn:hover {
+  border-color: var(--primary);
+  background: rgba(255, 193, 7, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(255, 193, 7, 0.18);
+}
+.no-tipo-icon {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+.no-tipo-btn strong {
+  font-size: 1.05rem;
+}
+.no-tipo-sub {
+  font-size: 0.79rem;
+  color: var(--text-muted);
+}
+
+/* Step 2 — Form */
+.no-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.no-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.no-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.no-input {
+  padding: 11px 13px;
+  background: #1a1a1a;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.18s;
+  font-family: inherit;
+}
+.no-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.13);
+}
+.no-taxa-tag {
+  font-size: 0.82rem;
+  color: var(--primary);
+  font-weight: 600;
+  min-height: 1em;
+}
+
+/* Step 3 — Cart */
+.no-cart-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.no-section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.no-cart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.no-cart-empty {
+  color: var(--text-muted);
+  font-size: 0.87rem;
+  text-align: center;
+  padding: 16px 0;
+}
+.no-cart-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.no-cart-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.no-cart-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.no-cart-detail {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.no-cart-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.no-cart-price {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.no-cart-del {
+  background: none;
+  border: none;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 0.88rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.no-cart-del:hover {
+  background: rgba(255, 107, 107, 0.15);
+}
+.no-cart-taxa {
+  font-size: 0.81rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: 4px;
+}
+.no-cart-total {
+  text-align: right;
+  font-weight: 800;
+  font-size: 1.08rem;
+  color: var(--secondary);
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.no-catalog-box {
+  margin-bottom: 4px;
+}
+
+/* Resumo no step de pagamento */
+.no-resumo-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.no-resumo-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  padding: 4px 0;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.no-resumo-row:last-child {
+  border-bottom: none;
+}
+.no-resumo-taxa {
+  color: #64b5f6;
+}
+.no-resumo-total {
+  text-align: right;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--secondary);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+/* ================================================================
+   CATEGORY BADGES — Combo / Clone / Promoção
+   ================================================================ */
+
+.item-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-right: 7px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 🍔 COMBO — laranja âmbar */
+.badge-combo {
+  background: rgba(255, 152, 0, 0.18);
+  color: #ffa726;
+  border: 1px solid rgba(255, 152, 0, 0.45);
+}
+
+/* 👥 CLONE — roxo/lilás */
+.badge-clone {
+  background: rgba(156, 39, 176, 0.18);
+  color: #ce93d8;
+  border: 1px solid rgba(156, 39, 176, 0.45);
+}
+
+/* 🎉 PROMO — verde esmeralda */
+.badge-promo {
+  background: rgba(46, 204, 113, 0.18);
+  color: #69db7c;
+  border: 1px solid rgba(46, 204, 113, 0.45);
+}
+
+/* ----------------------------------------------------------------
+   Cabeçalho do combo no card: nome + badge em linha
+   ---------------------------------------------------------------- */
+.combo-header-kds {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 8px;
+  margin-bottom: 10px;
+  border-radius: 7px 7px 0 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 2px solid rgba(255, 193, 7, 0.25);
+}
+
+.combo-header-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: 0.2px;
+}
+
+/* Borda esquerda colorida no bloco do item quando tem badge especial */
+.order-item-combo {
+  border-left: 3px solid rgba(255, 152, 0, 0.5);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: rgba(255, 152, 0, 0.03);
+}
+
+/* Clone — borda roxa */
+.order-item-combo:has(.badge-clone) {
+  border-left-color: rgba(156, 39, 176, 0.5);
+  background: rgba(156, 39, 176, 0.03);
+}
+
+/* Promo — borda verde */
+.order-item-combo:has(.badge-promo) {
+  border-left-color: rgba(46, 204, 113, 0.5);
+  background: rgba(46, 204, 113, 0.03);
 }

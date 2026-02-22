@@ -223,12 +223,16 @@
     <!-- Sidebar -->
     <nav class="kds-sidebar">
       <div class="sidebar-top">
+        <button class="sidebar-btn sidebar-btn-new-order" id="btn-new-order">
+          <span class="sidebar-btn-icon">🍔</span>
+          <span class="sidebar-btn-label">Criar Pedido</span>
+        </button>
         <button class="sidebar-btn" id="btn-menu-management">
           <span class="sidebar-btn-icon">📋</span>
           <span class="sidebar-btn-label">Gestão Cardápio</span>
         </button>
         <button class="sidebar-btn" id="btn-ingredients-management">
-          <span class="sidebar-btn-icon">🥬</span>
+          <span class="sidebar-btn-icon">🍴</span>
           <span class="sidebar-btn-label">Gestão Insumos</span>
         </button>
         <button class="sidebar-btn" id="btn-history">
@@ -398,6 +402,55 @@
       </div>
     </div>
 
+    <!-- ================================================================
+         MODAL: ADICIONAR ITEM AO PEDIDO (KDS Add Item)
+         ================================================================ -->
+    <div class="modal kds-add-item-modal" id="kds-add-item-modal">
+      <div class="modal-content kds-add-item-content">
+        <div class="modal-header">
+          <h2 id="ai-modal-title">➕ Adicionar Item ao Pedido</h2>
+          <button class="btn-close" onclick="_aiCloseModal()">&times;</button>
+        </div>
+        <div class="modal-body ai-modal-body" id="ai-modal-body">
+          <!-- Catálogo ou steps serão renderizados aqui -->
+        </div>
+        <div class="ai-modal-footer" id="ai-modal-footer">
+          <!-- Botões de navegação injetados por JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+         MODAL: DESCONTO
+         ================================================================ -->
+    <div class="modal kds-discount-modal" id="kds-discount-modal">
+      <div class="modal-content kds-discount-content">
+        <div class="modal-header">
+          <h2 id="disc-modal-title">🏷️ Aplicar Desconto</h2>
+          <button class="btn-close" onclick="_discountCloseModal()">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="disc-modal-body">
+          <!-- Conteúdo injetado por JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+         MODAL: CRIAR PEDIDO (New Order)
+         ================================================================ -->
+    <div class="modal new-order-modal" id="new-order-modal">
+      <div class="modal-content new-order-content">
+        <div class="modal-header">
+          <h2 id="no-title">🧾 Criar Pedido</h2>
+          <button class="btn-close" onclick="newOrderClose()">&times;</button>
+        </div>
+        <div class="modal-body new-order-body" id="no-body"></div>
+        <div class="new-order-footer" id="no-footer"></div>
+      </div>
+    </div>
+
     <!-- Overlay -->
     <div class="overlay" id="overlay"></div>
 
@@ -412,10 +465,25 @@
       />
     </audio>
 
-    <!-- Audio para beep de pedido pendente -->
-    <audio id="beep-sound" preload="auto" loop>
-      <source src="beep.mp3" type="audio/mpeg" />
-    </audio>
+    <!-- FIX: beep gerado via Web Audio API — sem dependência de beep.mp3 -->
+
+    <!-- ================================================================
+         SCRIPTS - ORDEM CRÍTICA COM AUTENTICAÇÃO!
+         FIX: Firebase carregado ANTES do bloco de login inline,
+         garantindo que window.loginWithPin esteja disponível mesmo
+         quando o usuário digita o PIN rapidamente.
+         ================================================================ -->
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+
+    <!-- Firebase Init com Autenticação -->
+    <script src="firebase-init-auth.js"></script>
+
+    <!-- KDS Script -->
+    <script src="kds.js"></script>
 
     <!-- ================================================================
          LOGIN SCRIPT
@@ -569,21 +637,6 @@
         document.head.appendChild(style);
       })();
     </script>
-
-    <!-- ================================================================
-         SCRIPTS - ORDEM CRÍTICA COM AUTENTICAÇÃO!
-         ================================================================ -->
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
-
-    <!-- Firebase Init com Autenticação -->
-    <script src="firebase-init-auth.js"></script>
-
-    <!-- KDS Script -->
-    <script src="kds.js"></script>
 
     <!-- Sidebar é exibida diretamente pelo firebase-init-auth.js após autenticação -->
   </body>

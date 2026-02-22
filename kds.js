@@ -106,9 +106,14 @@ function getPrintStyles(type) {
       page-break-inside: avoid;
     }
     
+    /* 🔽 CORREÇÃO AQUI */
     .total {
       display: flex;
-      justify-content: space-between;
+      ${
+        type === "customer"
+          ? "flex-direction: column; align-items: center; text-align: center;"
+          : "justify-content: space-between;"
+      }
       font-size: 16px;
       font-weight: bold;
       margin-top: 8px;
@@ -142,6 +147,26 @@ const State = {
   activeFilter: "all",
   beepIntervals: {},
   acceptedOrders: {},
+
+  // ADD ITEM MODAL
+  addItem: {
+    orderId: null,
+    steps: [],
+    currentStep: 0,
+    tempItem: {},
+    isCombo: false,
+    isFullCombo: false,
+    comboData: null,
+    comboItems: [],
+    currentBurgerIndex: 0,
+    isProcessingUpgrades: false,
+  },
+
+  // DISCOUNT MODAL
+  discount: {
+    orderId: null,
+    itemIndex: null,
+  },
 };
 
 // ================================
@@ -277,6 +302,7 @@ function parseOrderItem(item) {
   const parsed = {
     qty,
     name,
+    tamanho: "",
     ponto: "",
     sem: [],
     adicionais: [],
@@ -286,16 +312,20 @@ function parseOrderItem(item) {
   // Processar observação se existir
   if (obs) {
     const lines = obs
-      .split(/\n/)
+      .split(/\n|\|/)
       .map((l) => l.trim())
       .filter(Boolean);
 
     lines.forEach((line) => {
-      // Detectar ponto (^ garante que só reconhece se a linha COMEÇA com "Ponto:")
+      // Detectar ponto
       if (line.match(/^ponto:/i)) {
         parsed.ponto = line.replace(/^ponto:/i, "").trim();
       }
-      // Detectar retiradas (^ garante que só reconhece se a linha COMEÇA com "Sem:")
+      // Detectar tamanho/variante (ex: "Tamanho: Duplo")
+      else if (line.match(/^tamanho:/i)) {
+        parsed.tamanho = line.replace(/^tamanho:/i, "").trim();
+      }
+      // Detectar retiradas
       else if (line.match(/^sem:/i)) {
         const items = line.replace(/^sem:/i, "").trim();
         parsed.sem = items.split(",").map((i) => i.trim());
@@ -303,10 +333,12 @@ function parseOrderItem(item) {
       // Detectar adicionais
       else if (line.match(/^adicionais?:/i)) {
         const items = line.replace(/^adicionais?:/i, "").trim();
-        parsed.adicionais = items.split(",").map((i) => i.trim());
+        parsed.adicionais = items
+          .split(",")
+          .map((i) => ({ nome: i.trim(), preco: null }));
       }
-      // Outras observações
-      else if (!line.match(/^nome:/i)) {
+      // Outras observações (ignora Nome: e Tamanho: que já foram capturados)
+      else if (!line.match(/^nome:/i) && !line.match(/^tamanho:/i)) {
         parsed.obs.push(line);
       }
     });
@@ -330,8 +362,13 @@ function parseOrderItem(item) {
   if (adicionais.length > 0 && parsed.adicionais.length === 0) {
     parsed.adicionais = adicionais.map((a) =>
       typeof a === "object" && a !== null
-        ? a.nome || JSON.stringify(a)
-        : String(a),
+        ? { nome: a.nome || JSON.stringify(a), preco: a.preco || null }
+        : { nome: String(a), preco: null },
+    );
+  } else {
+    // adicionais que vieram da observação (texto) não têm preco
+    parsed.adicionais = parsed.adicionais.map((a) =>
+      typeof a === "object" ? a : { nome: a, preco: null },
     );
   }
 
@@ -386,8 +423,8 @@ function parseComboItems(qty, comboName, obs) {
         const items = part.replace(/^adicionais?:/i, "").trim();
         currentItem.adicionais = items
           .split(",")
-          .map((i) => i.trim())
-          .filter(Boolean);
+          .map((i) => ({ nome: i.trim(), preco: null }))
+          .filter((a) => a.nome);
       } else if (part.match(/^batata:/i)) {
         // Batata pertence ao combo, não ao burger — guarda no nível certo
         comboBatata = part.replace(/^batata:/i, "").trim();
@@ -449,66 +486,107 @@ function formatOrderItemsForCard(items) {
     .map((item) => {
       const parsed = parseOrderItem(item);
 
-      // Se for um combo, formatar cada sub-item
+      // função para limpar observações redundantes
+      const cleanObs = (text) => {
+        if (!text) return "";
+
+        return text
+          .replace(/Tamanho:\s*[^|]+/gi, "")
+          .replace(/Sem:\s*[^|]+/gi, "")
+          .replace(/Adicionais:\s*[^|]+/gi, "")
+          .replace(/\|\s*\|/g, "|")
+          .replace(/^\s*\|\s*|\s*\|\s*$/g, "")
+          .trim();
+      };
+
+      // ===== COMBO =====
       if (parsed.isCombo) {
+        const category = _resolveItemCategory(item, parsed);
+        const badge = _getCategoryBadgeHtml(category);
+
         let html = `<div class="order-item-combo">`;
+
+        // Cabeçalho do combo com nome + badge
+        html += `<div class="combo-header-kds">${badge}<span class="combo-header-name">${parsed.qty}x ${parsed.name}</span></div>`;
 
         parsed.items.forEach((subItem) => {
           html += `<div class="order-item-block">`;
-          html += `<div class="item-header">| --- ${subItem.name} --- |</div>`;
+          html += `<div class="item-header">${subItem.qty || 1}x ${subItem.name}</div>`;
 
           if (subItem.ponto) {
-            html += `<div class="item-detail"><strong>Ponto:</strong> ${subItem.ponto}</div>`;
+            html += `<div class="item-detail">Ponto: ${subItem.ponto}</div>`;
           }
 
-          if (subItem.sem.length > 0) {
-            html += `<div class="item-detail item-detail--remove"><strong>Sem:</strong> ${subItem.sem.join(", ")}</div>`;
+          if (subItem.sem && subItem.sem.length > 0) {
+            html += `<div class="item-detail"><span class="item-detail-label retirar">Retirar:</span> ${subItem.sem.join(", ")}</div>`;
           }
 
-          if (subItem.adicionais.length > 0) {
-            html += `<div class="item-detail item-detail--add"><strong>➕ Adicionais:</strong> ${subItem.adicionais.join(", ")}</div>`;
+          if (subItem.adicionais && subItem.adicionais.length > 0) {
+            html += `<div class="item-detail"><span class="item-detail-label adicionais">Adicionais:</span> ${formatAdicionais(subItem.adicionais, true)}</div>`;
           }
 
-          if (subItem.obs.length > 0) {
+          if (subItem.obs && subItem.obs.length > 0) {
             subItem.obs.forEach((o) => {
-              html += `<div class="item-detail"><strong>Obs:</strong> ${o}</div>`;
+              const cleaned = cleanObs(o);
+              if (cleaned) {
+                html += `<div class="item-detail">Obs: ${cleaned}</div>`;
+              }
             });
           }
 
           html += `</div>`;
         });
 
-        // Batata e Bebida do combo — exibidos com destaque após os burgers
         if (parsed.batata) {
-          html += `<div class="combo-upgrade combo-upgrade--batata">🍟 <strong>Batata:</strong> ${parsed.batata}</div>`;
+          html += `<div class="combo-upgrade">🍟 Batata: ${parsed.batata}</div>`;
         }
+
         if (parsed.bebida) {
-          html += `<div class="combo-upgrade combo-upgrade--bebida">🥤 <strong>Bebida:</strong> ${parsed.bebida}</div>`;
+          html += `<div class="combo-upgrade">🥤 Bebida: ${parsed.bebida}</div>`;
         }
 
         html += `</div>`;
         return html;
       }
 
-      // Item simples
+      // ===== ITEM SIMPLES =====
       let html = `<div class="order-item-block">`;
-      html += `<div class="item-header">${parsed.qty}x ${parsed.name}</div>`;
+      // Categoria + badge
+      const _itemCategory = _resolveItemCategory(item, parsed);
+      const _itemBadge = _getCategoryBadgeHtml(_itemCategory);
+      // Preço e desconto do item (campos opcionais adicionados pelo KDS)
+      const itemPrecoOriginal = item._precoOriginal;
+      const itemPrecoDesconto = item._precoDesconto;
+      const itemDesconto = item._desconto;
+      // Preço base do item vindo do pedido
+      const itemPreco = item.preco != null ? item.preco : null;
+
+      let precoHtml = "";
+      if (itemDesconto) {
+        precoHtml = ` <span class="item-preco-original">R$ ${Number(itemPrecoOriginal).toFixed(2).replace(".", ",")}</span> <span class="item-preco-desconto">R$ ${Number(itemPrecoDesconto).toFixed(2).replace(".", ",")}</span>`;
+      } else if (itemPreco != null) {
+        precoHtml = ` <span class="item-preco">R$ ${Number(itemPreco).toFixed(2).replace(".", ",")}</span>`;
+      }
+      html += `<div class="item-header">${_itemBadge}${parsed.qty}x ${parsed.name}${parsed.tamanho ? " (" + parsed.tamanho + ")" : ""}${precoHtml}</div>`;
 
       if (parsed.ponto) {
-        html += `<div class="item-detail"><strong>Ponto:</strong> ${parsed.ponto}</div>`;
+        html += `<div class="item-detail">Ponto: ${parsed.ponto}</div>`;
       }
 
-      if (parsed.sem.length > 0) {
-        html += `<div class="item-detail"><strong>Sem:</strong> ${parsed.sem.join(", ")}</div>`;
+      if (parsed.sem && parsed.sem.length > 0) {
+        html += `<div class="item-detail"><span class="item-detail-label retirar">Retirar:</span> ${parsed.sem.join(", ")}</div>`;
       }
 
-      if (parsed.adicionais.length > 0) {
-        html += `<div class="item-detail"><strong>Adicionais:</strong> ${parsed.adicionais.join(", ")}</div>`;
+      if (parsed.adicionais && parsed.adicionais.length > 0) {
+        html += `<div class="item-detail"><span class="item-detail-label adicionais">Adicionais:</span> ${formatAdicionais(parsed.adicionais, true)}</div>`;
       }
 
-      if (parsed.obs.length > 0) {
+      if (parsed.obs && parsed.obs.length > 0) {
         parsed.obs.forEach((o) => {
-          html += `<div class="item-detail"><strong>Obs:</strong> ${o}</div>`;
+          const cleaned = cleanObs(o);
+          if (cleaned) {
+            html += `<div class="item-detail">Obs: ${cleaned}</div>`;
+          }
         });
       }
 
@@ -530,22 +608,24 @@ function renderOrder(orderId, order, isNew = false) {
   const container = document.getElementById(containerId);
 
   const emptyState = container.querySelector(".empty-state");
-  if (emptyState) {
-    emptyState.remove();
-  }
+  if (emptyState) emptyState.remove();
 
   let orderCard = document.getElementById(`order-${orderId}`);
   const isAccepted = State.acceptedOrders[orderId] === true;
 
   if (!orderCard) {
     orderCard = document.createElement("div");
-    orderCard.className = `order-card ${isNew && !isAccepted ? "new-order pending-accept" : isAccepted ? "accepted" : ""}`;
+    orderCard.className = `order-card ${
+      isNew && !isAccepted
+        ? "new-order pending-accept"
+        : isAccepted
+          ? "accepted"
+          : ""
+    }`;
     orderCard.id = `order-${orderId}`;
     container.appendChild(orderCard);
 
-    if (isNew && !isAccepted) {
-      startBeep(orderId);
-    }
+    if (isNew && !isAccepted) startBeep(orderId);
   }
 
   const time =
@@ -558,54 +638,62 @@ function renderOrder(orderId, order, isNew = false) {
        </button>`
     : "";
 
-  // FORMATAÇÃO PADRÃO DELIVERY
   orderCard.innerHTML = `
     <div class="order-header">
       <span class="order-number">#${orderId.slice(-6).toUpperCase()}</span>
       <span class="order-time">${time}</span>
     </div>
-    
+
     <div class="order-customer">
-      👤 ${cliente}
+      👤 <strong>${cliente}</strong>
     </div>
-    
-    ${getItemsSummary(order.itens || [])}
-    
+
     <div class="order-items-detailed">
       ${formatOrderItemsForCard(order.itens || [])}
     </div>
-    
+
     <div class="order-details">
-      ${order.modoConsumo ? `<div class="order-detail-row"><span>🍽️ Modo:</span><span>${order.modoConsumo}</span></div>` : ""}
-      ${order.endereco ? `<div class="order-detail-row"><span>📍 Endereço:</span><span>${order.endereco}</span></div>` : ""}
-      ${order.bairro ? `<div class="order-detail-row"><span>🏘️ Bairro:</span><span>${order.bairro}</span></div>` : ""}
-      ${order.taxaEntrega ? `<div class="order-detail-row"><span>🛵 Taxa:</span><span>${formatPrice(order.taxaEntrega)}</span></div>` : ""}
-      ${order.pagamento ? `<div class="order-detail-row"><span>💳 Pagamento:</span><span>${formatPayment(order.pagamento)}</span></div>` : ""}
-      ${order.troco ? `<div class="order-detail-row"><span>💵 Troco:</span><span>${order.troco}</span></div>` : ""}
-      <div class="order-total">Total: ${formatPrice(order.total || 0)}</div>
+      ${order.modoConsumo ? `<div class="order-detail-row">🍽️ Modo: <strong>${order.modoConsumo}</strong></div>` : ""}
+      ${order.endereco ? `<div class="order-detail-row">📍 Endereço: ${order.endereco}</div>` : ""}
+      ${order.bairro ? `<div class="order-detail-row">🏘️ Bairro: ${order.bairro}</div>` : ""}
+      ${order.taxaEntrega ? `<div class="order-detail-row">🛵 Taxa: ${formatPrice(order.taxaEntrega)}</div>` : ""}
+      ${order.pagamento ? `<div class="order-detail-row">💳 Pagamento: ${formatPayment(order.pagamento)}</div>` : ""}
+      ${order.troco ? `<div class="order-detail-row">💵 Troco: ${order.troco}</div>` : ""}
     </div>
-    
+
+    <div class="order-total">
+      TOTAL: ${formatPrice(order.total || 0)}
+    </div>
+
     <div class="order-actions">
       ${acceptButton}
       ${
         isAccepted
           ? `
-      <div class="order-actions-row">
-        <button class="btn-order btn-print-kitchen btn-small" onclick="printKitchen('${orderId}')">
-          🖨️ Cozinha
-        </button>
-        <button class="btn-order btn-print-customer btn-small" onclick="printCustomer('${orderId}')">
-          🧾 Cliente
-        </button>
-      </div>
-      <div class="order-actions-row">
-        <button class="btn-order btn-ready" onclick="completeOrder('${orderId}')">
-          ✅ Concluir
-        </button>
-        <button class="btn-order btn-cancel" onclick="cancelOrder('${orderId}')">
-          ❌ Cancelar
-        </button>
-      </div>
+        <div class="order-actions-row">
+          <button class="btn-order btn-print-kitchen btn-small" onclick="printKitchen('${orderId}')">
+            🖨️ Cozinha
+          </button>
+          <button class="btn-order btn-print-customer btn-small" onclick="printCustomer('${orderId}')">
+            🧾 Cliente
+          </button>
+        </div>
+        <div class="order-actions-row">
+          <button class="btn-order btn-add-item btn-small" onclick="openAddItemModal('${orderId}')">
+            ➕ Add Item
+          </button>
+          <button class="btn-order btn-discount btn-small" onclick="openDiscountModal('${orderId}')">
+            🏷️ Desconto
+          </button>
+        </div>
+        <div class="order-actions-row">
+          <button class="btn-order btn-ready" onclick="completeOrder('${orderId}')">
+            ✅ Concluir
+          </button>
+          <button class="btn-order btn-cancel" onclick="cancelOrder('${orderId}')">
+            ❌ Cancelar
+          </button>
+        </div>
       `
           : ""
       }
@@ -638,6 +726,95 @@ function getItemsSummary(items) {
 function formatPrice(value) {
   const num = parseFloat(value) || 0;
   return `R$ ${num.toFixed(2).replace(".", ",")}`;
+}
+
+// ================================
+// FORMAT ADICIONAIS (global helper)
+// Converte array de strings ou objetos {nome, preco} para texto legível
+// showPrice=true mostra preço, false só o nome
+// ================================
+// Mapa lazy de preços: { "bacon": 4, "ovo": 2, ... }
+function buildAdicionaisMap() {
+  if (buildAdicionaisMap._cache) return buildAdicionaisMap._cache;
+  const map = {};
+  if (!State.menuData) return map;
+  Object.values(State.menuData).forEach((category) => {
+    if (!Array.isArray(category)) return;
+    category.forEach((item) => {
+      [...(item.adicionais || []), ...(item.paidExtras || [])].forEach((a) => {
+        if (a && a.nome && a.preco != null) {
+          map[a.nome.trim().toLowerCase()] = a.preco;
+        }
+      });
+    });
+  });
+  buildAdicionaisMap._cache = map;
+  return map;
+}
+
+window.invalidateAdicionaisCache = function () {
+  buildAdicionaisMap._cache = null;
+};
+
+function formatAdicionais(adicionais, showPrice) {
+  if (!adicionais || !adicionais.length) return "";
+  const map = showPrice ? buildAdicionaisMap() : {};
+  return adicionais
+    .map((a) => {
+      const nome =
+        typeof a === "object" && a !== null ? a.nome || "" : String(a);
+      let preco = typeof a === "object" && a !== null ? a.preco : null;
+      if (showPrice && preco == null)
+        preco = map[nome.trim().toLowerCase()] ?? null;
+      if (showPrice && preco != null) {
+        return (
+          nome +
+          ' <span class="item-adicional-preco">(+R$ ' +
+          Number(preco).toFixed(2).replace(".", ",") +
+          ")</span>"
+        );
+      }
+      return nome;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+// ================================
+// CATEGORY BADGE HELPERS
+// ================================
+
+/**
+ * Resolve a categoria de um item:
+ * 1. Campo explícito item.categoria (adicionado pelo KDS)
+ * 2. Busca pelo nome no menuData
+ * 3. Fallback por parsed.isCombo
+ */
+function _resolveItemCategory(item, parsed) {
+  if (item.categoria) return item.categoria;
+  const nome = item.nome || (parsed && parsed.name) || "";
+  if (State.menuData && nome) {
+    for (const [cat, items] of Object.entries(State.menuData)) {
+      if (items.some((i) => i.nome === nome)) return cat;
+    }
+  }
+  if (parsed && parsed.isCombo) return "Combos";
+  return null;
+}
+
+/**
+ * Retorna HTML do badge colorido para Combos, Clones e Promoções.
+ * Demais categorias retornam string vazia.
+ */
+function _getCategoryBadgeHtml(category) {
+  const map = {
+    Combos: { icon: "🍔", label: "COMBO", cls: "badge-combo" },
+    Clones: { icon: "👥", label: "CLONE", cls: "badge-clone" },
+    Promoções: { icon: "🎉", label: "PROMO", cls: "badge-promo" },
+  };
+  const b = map[category];
+  if (!b) return "";
+  return `<span class="item-category-badge ${b.cls}">${b.icon} ${b.label}</span>`;
 }
 
 // ================================
@@ -692,7 +869,6 @@ async function acceptOrder(orderId) {
       renderOrder(orderId, order, false);
     }
 
-    updateInProgressWidget();
     showToast("✅ Pedido aceito e em preparo", "success");
   } catch (error) {
     console.error("Erro ao aceitar pedido:", error);
@@ -732,121 +908,151 @@ async function printKitchen(orderId) {
 
   const cliente = order.cliente || order.nomeCliente || order.nome || "Cliente";
 
-  let printContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Pedido Cozinha - #${orderId.slice(-6).toUpperCase()}</title>
-      <style>
-        ${getPrintStyles("kitchen")}
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        🔥 RIBBS ZN - COZINHA 🔥
-        <div class="order-number">#${orderId.slice(-6).toUpperCase()}</div>
-        <div>${order.dataHora || new Date().toLocaleString("pt-BR")}</div>
-      </div>
+  function extractSizeFromObs(obsArray) {
+    let size = "";
+    if (!obsArray) return size;
 
-      <div class="section">
-        <div class="section-title">👤 ${cliente}</div>
-      </div>
-
-      ${
-        order.modoConsumo
-          ? `
-      <div class="section">
-        <div class="section-title">🍽️ Modo: ${order.modoConsumo}</div>
-      </div>
-      `
-          : ""
-      }
-
-      <div class="section">
-        <div class="section-title">📋 ITENS DO PEDIDO</div>
-  `;
-
-  if (order.itens && order.itens.length > 0) {
-    order.itens.forEach((item) => {
-      const parsed = parseOrderItem(item);
-
-      // Se for combo, processar cada sub-item
-      if (parsed.isCombo) {
-        parsed.items.forEach((subItem) => {
-          printContent += `<div class="item-header">| --- ${subItem.name} --- |</div>`;
-
-          if (subItem.ponto) {
-            printContent += `<div class="item-detail"><strong>Ponto:</strong> ${subItem.ponto}</div>`;
-          }
-
-          if (subItem.sem.length > 0) {
-            printContent += `<div class="item-detail"><strong>Sem:</strong> ${subItem.sem.join(", ")}</div>`;
-          }
-
-          if (subItem.adicionais.length > 0) {
-            printContent += `<div class="item-detail"><strong>Adicionais:</strong> ${subItem.adicionais.join(", ")}</div>`;
-          }
-
-          if (subItem.obs.length > 0) {
-            subItem.obs.forEach((o) => {
-              printContent += `<div class="item-detail"><strong>Obs:</strong> ${o}</div>`;
-            });
-          }
-        });
-
-        // Batata e Bebida do combo
-        if (parsed.batata) {
-          printContent += `<div class="item-detail"><strong>🍟 Batata:</strong> ${parsed.batata}</div>`;
-        }
-        if (parsed.bebida) {
-          printContent += `<div class="item-detail"><strong>🥤 Bebida:</strong> ${parsed.bebida}</div>`;
-        }
-      } else {
-        // Item simples
-        printContent += `<div class="item-header">${parsed.qty}x ${parsed.name}</div>`;
-
-        if (parsed.ponto) {
-          printContent += `<div class="item-detail"><strong>Ponto:</strong> ${parsed.ponto}</div>`;
-        }
-
-        if (parsed.sem.length > 0) {
-          printContent += `<div class="item-detail"><strong>Sem:</strong> ${parsed.sem.join(", ")}</div>`;
-        }
-
-        if (parsed.adicionais.length > 0) {
-          printContent += `<div class="item-detail"><strong>Adicionais:</strong> ${parsed.adicionais.join(", ")}</div>`;
-        }
-
-        if (parsed.obs.length > 0) {
-          parsed.obs.forEach((o) => {
-            printContent += `<div class="item-detail"><strong>Obs:</strong> ${o}</div>`;
-          });
-        }
-      }
+    obsArray.forEach((o) => {
+      const match = o.match(/Tamanho:\s*([^|]+)/i);
+      if (match) size = match[1].trim();
     });
+
+    return size;
   }
 
+  function cleanObs(text) {
+    if (!text) return "";
+    return text
+      .replace(/Tamanho:\s*[^|]+/gi, "")
+      .replace(/Sem:\s*[^|]+/gi, "")
+      .replace(/Adicionais:\s*[^|]+/gi, "")
+      .replace(/\|+/g, "")
+      .trim();
+  }
+
+  let printContent = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pedido Cozinha</title>
+<style>
+${getPrintStyles("kitchen")}
+</style>
+</head>
+<body>
+
+<div class="header">
+  RIBBS ZN - COZINHA<br>
+  PEDIDO #${orderId.slice(-6).toUpperCase()}<br>
+  ${order.dataHora || new Date().toLocaleString("pt-BR")}
+</div>
+
+<div class="section">
+  CLIENTE: ${cliente}
+</div>
+
+${
+  order.modoConsumo
+    ? `
+<div class="section">
+  MODO: ${order.modoConsumo}
+</div>
+`
+    : ""
+}
+
+<div class="section">
+  ITENS:
+</div>
+`;
+
+  order.itens.forEach((item) => {
+    const parsed = parseOrderItem(item);
+
+    // ===== COMBO =====
+    if (parsed.isCombo) {
+      parsed.items.forEach((subItem) => {
+        const itemName = `${subItem.name}${subItem.tamanho ? " (" + subItem.tamanho + ")" : ""}`;
+
+        printContent += `
+<div class="item-header">
+${subItem.qty || 1}x ${itemName}
+</div>
+`;
+
+        if (subItem.sem?.length) {
+          printContent += `<div class="item-detail">Retirar: ${subItem.sem.join(", ")}</div>`;
+        }
+
+        if (subItem.adicionais?.length) {
+          const addStr = formatAdicionais(subItem.adicionais, false);
+          if (addStr)
+            printContent += `<div class="item-detail">Adicionais: ${addStr}</div>`;
+        }
+
+        if (subItem.obs?.length) {
+          subItem.obs.forEach((o) => {
+            const cleaned = cleanObs(o);
+            if (cleaned)
+              printContent += `<div class="item-detail">Obs: ${cleaned}</div>`;
+          });
+        }
+      });
+
+      if (parsed.batata)
+        printContent += `<div class="item-detail">Batata: ${parsed.batata}</div>`;
+      if (parsed.bebida)
+        printContent += `<div class="item-detail">Bebida: ${parsed.bebida}</div>`;
+    }
+    // ===== ITEM SIMPLES =====
+    else {
+      const itemName = `${parsed.name}${parsed.tamanho ? " (" + parsed.tamanho + ")" : ""}`;
+
+      printContent += `
+<div class="item-header">
+${parsed.qty}x ${itemName}
+</div>
+`;
+
+      if (parsed.sem?.length) {
+        printContent += `<div class="item-detail">Retirar: ${parsed.sem.join(", ")}</div>`;
+      }
+
+      if (parsed.adicionais?.length) {
+        const addStr = formatAdicionais(parsed.adicionais, false);
+        if (addStr)
+          printContent += `<div class="item-detail">Adicionais: ${addStr}</div>`;
+      }
+
+      if (parsed.obs?.length) {
+        parsed.obs.forEach((o) => {
+          const cleaned = cleanObs(o);
+          if (cleaned)
+            printContent += `<div class="item-detail">Obs: ${cleaned}</div>`;
+        });
+      }
+    }
+  });
+
   printContent += `
-      </div>
+<div class="footer">
+--------------------------------
+${new Date().toLocaleString("pt-BR")}
+</div>
 
-      <div class="footer">
-        ═══════════════════════<br>
-        ${new Date().toLocaleString("pt-BR")}
-      </div>
+<script>
+window.onload = function() {
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => window.close(), 500);
+  }, 250);
+};
+</script>
 
-      <script>
-        window.onload = function() {
-          setTimeout(() => {
-            window.print();
-            setTimeout(() => window.close(), 500);
-          }, 250);
-        };
-      </script>
-    </body>
-    </html>
-  `;
+</body>
+</html>
+`;
 
   const printWindow = window.open("", "_blank", "width=350,height=600");
   if (printWindow) {
@@ -854,7 +1060,7 @@ async function printKitchen(orderId) {
     printWindow.document.close();
   }
 
-  showToast("🖨️ Imprimindo pedido para cozinha", "success");
+  showToast("Imprimindo pedido da cozinha", "success");
 }
 
 // ================================
@@ -869,173 +1075,205 @@ async function printCustomer(orderId) {
 
   const cliente = order.cliente || order.nomeCliente || order.nome || "Cliente";
 
-  // Gerar resumo
-  const summary = (order.itens || [])
-    .map((item) => {
-      const qty = item.quantidade || item.qtd || 1;
-      const name = item.nome || "Item";
-      return `${qty}x ${name}`;
-    })
-    .join(" + ");
+  function extractSizeFromObs(obsArray) {
+    let size = "";
+    if (!obsArray) return size;
+
+    obsArray.forEach((o) => {
+      const match = o.match(/Tamanho:\s*([^|]+)/i);
+      if (match) size = match[1].trim();
+    });
+
+    return size;
+  }
+
+  function cleanObs(text) {
+    if (!text) return "";
+    return text
+      .replace(/Tamanho:\s*[^|]+/gi, "")
+      .replace(/Sem:\s*[^|]+/gi, "")
+      .replace(/Adicionais:\s*[^|]+/gi, "")
+      .replace(/\|+/g, "")
+      .trim();
+  }
 
   let printContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Comprovante - #${orderId.slice(-6).toUpperCase()}</title>
-      <style>
-        ${getPrintStyles("customer")}
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div class="logo">🔥 RIBBS ZN 🔥</div>
-        <div>Comprovante de Pedido</div>
-        <div class="order-number">#${orderId.slice(-6).toUpperCase()}</div>
-        <div>${order.dataHora || new Date().toLocaleString("pt-BR")}</div>
-      </div>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Comprovante</title>
+<style>
+${getPrintStyles("customer")}
+</style>
+</head>
+<body>
 
-      <div class="section">
-        <div class="section-title">👤 ${cliente}</div>
-        <div>${summary}</div>
-      </div>
+<div class="header">
+  RIBBS ZN<br>
+  COMPROVANTE DE PEDIDO<br>
+  PEDIDO #${orderId.slice(-6).toUpperCase()}<br>
+  ${order.dataHora || new Date().toLocaleString("pt-BR")}
+</div>
 
-      <div class="section">
-  `;
+<div class="section">
+CLIENTE: ${cliente}
+</div>
 
-  if (order.itens && order.itens.length > 0) {
-    order.itens.forEach((item) => {
-      const parsed = parseOrderItem(item);
+<div class="section">
+ITENS:
+</div>
+`;
 
-      // Se for combo, processar cada sub-item
-      if (parsed.isCombo) {
-        parsed.items.forEach((subItem) => {
-          printContent += `<div class="item-header">| --- ${subItem.name} --- |</div>`;
+  order.itens.forEach((item) => {
+    const parsed = parseOrderItem(item);
 
-          if (subItem.ponto) {
-            printContent += `<div class="item-detail"><strong>Ponto:</strong> ${subItem.ponto}</div>`;
-          }
+    // COMBO
+    if (parsed.isCombo) {
+      parsed.items.forEach((subItem) => {
+        const itemName = `${subItem.name}${subItem.tamanho ? " (" + subItem.tamanho + ")" : ""}`;
 
-          if (subItem.sem.length > 0) {
-            printContent += `<div class="item-detail"><strong>Sem:</strong> ${subItem.sem.join(", ")}</div>`;
-          }
+        printContent += `
+<div class="item-header">
+${subItem.qty || 1}x ${itemName}
+</div>
+`;
 
-          if (subItem.adicionais.length > 0) {
-            printContent += `<div class="item-detail"><strong>Adicionais:</strong> ${subItem.adicionais.join(", ")}</div>`;
-          }
-
-          if (subItem.obs.length > 0) {
-            subItem.obs.forEach((o) => {
-              printContent += `<div class="item-detail"><strong>Obs:</strong> ${o}</div>`;
-            });
-          }
-        });
-
-        // Batata e Bebida do combo
-        if (parsed.batata) {
-          printContent += `<div class="item-detail"><strong>🍟 Batata:</strong> ${parsed.batata}</div>`;
-        }
-        if (parsed.bebida) {
-          printContent += `<div class="item-detail"><strong>🥤 Bebida:</strong> ${parsed.bebida}</div>`;
-        }
-      } else {
-        // Item simples
-        printContent += `<div class="item-header">${parsed.qty}x ${parsed.name}</div>`;
-
-        if (parsed.ponto) {
-          printContent += `<div class="item-detail"><strong>Ponto:</strong> ${parsed.ponto}</div>`;
+        if (subItem.sem?.length) {
+          printContent += `<div class="item-detail">Retirar: ${subItem.sem.join(", ")}</div>`;
         }
 
-        if (parsed.sem.length > 0) {
-          printContent += `<div class="item-detail"><strong>Sem:</strong> ${parsed.sem.join(", ")}</div>`;
+        if (subItem.adicionais?.length) {
+          const addStr = formatAdicionais(subItem.adicionais, true);
+          if (addStr)
+            printContent += `<div class="item-detail">Adicionais: ${addStr}</div>`;
         }
 
-        if (parsed.adicionais.length > 0) {
-          printContent += `<div class="item-detail"><strong>Adicionais:</strong> ${parsed.adicionais.join(", ")}</div>`;
-        }
-
-        if (parsed.obs.length > 0) {
-          parsed.obs.forEach((o) => {
-            printContent += `<div class="item-detail"><strong>Obs:</strong> ${o}</div>`;
+        if (subItem.obs?.length) {
+          subItem.obs.forEach((o) => {
+            const cleaned = cleanObs(o);
+            if (cleaned)
+              printContent += `<div class="item-detail">Obs: ${cleaned}</div>`;
           });
         }
+      });
+
+      if (parsed.batata)
+        printContent += `<div class="item-detail">Batata: ${parsed.batata}</div>`;
+      if (parsed.bebida)
+        printContent += `<div class="item-detail">Bebida: ${parsed.bebida}</div>`;
+    }
+    // ITEM SIMPLES
+    else {
+      const itemName = `${parsed.name}${parsed.tamanho ? " (" + parsed.tamanho + ")" : ""}`;
+      // Preço do item (com ou sem desconto)
+      let precoLine = "";
+      if (item._desconto) {
+        precoLine = `<div class="item-detail-discount"><span class="print-preco-original">De: R$ ${Number(item._precoOriginal).toFixed(2).replace(".", ",")}</span> &rarr; <strong>Por: R$ ${Number(item._precoDesconto).toFixed(2).replace(".", ",")}</strong> <em>(${item._desconto})</em></div>`;
+      } else if (item.preco != null) {
+        precoLine = `<div class="item-detail">Preço: R$ ${Number(item.preco).toFixed(2).replace(".", ",")}</div>`;
       }
-    });
-  }
+
+      printContent += `
+<div class="item-header">
+${parsed.qty}x ${itemName}
+</div>
+${precoLine}
+`;
+
+      if (parsed.sem?.length) {
+        printContent += `<div class="item-detail">Retirar: ${parsed.sem.join(", ")}</div>`;
+      }
+
+      if (parsed.adicionais?.length) {
+        const addStr = formatAdicionais(parsed.adicionais, true);
+        if (addStr)
+          printContent += `<div class="item-detail">Adicionais: ${addStr}</div>`;
+      }
+
+      if (parsed.obs?.length) {
+        parsed.obs.forEach((o) => {
+          const cleaned = cleanObs(o);
+          if (cleaned)
+            printContent += `<div class="item-detail">Obs: ${cleaned}</div>`;
+        });
+      }
+    }
+  });
 
   printContent += `
-      </div>
+<div class="section">
+${order.modoConsumo ? `MODO: ${order.modoConsumo}<br>` : ""}
+${order.endereco ? `ENDEREÇO: ${order.endereco}<br>` : ""}
+${order.bairro ? `BAIRRO: ${order.bairro}<br>` : ""}
+${order.pagamento ? `PAGAMENTO: ${order.pagamento}<br>` : ""}
+</div>
 
-      <div class="section">
-        ${order.modoConsumo ? `<div><strong>🍽️ Modo:</strong> ${order.modoConsumo}</div>` : ""}
-        ${order.endereco ? `<div><strong>📍 Endereço:</strong> ${order.endereco}</div>` : ""}
-        ${order.pagamento ? `<div><strong>💳 Pagamento:</strong> ${order.pagamento}</div>` : ""}
-      </div>
+<div class="total-section">
+TOTAL: ${formatPrice(order.total || 0)}
+</div>
 
-      <div class="total-section">
-        <div class="total">
-          <span>TOTAL:</span>
-          <span>${formatPrice(order.total || 0)}</span>
-        </div>
-      </div>
+<div class="footer">
+--------------------------------
+${new Date().toLocaleString("pt-BR")}
+</div>
 
-      <div class="footer">
-        ═══════════════════════<br>
-        ${new Date().toLocaleString("pt-BR")}
-      </div>
+<script>
+window.onload = function() {
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => window.close(), 500);
+  }, 250);
+};
+</script>
 
-      <script>
-        window.onload = function() {
-          setTimeout(() => {
-            window.print();
-            setTimeout(() => window.close(), 500);
-          }, 250);
-        };
-      </script>
-    </body>
-    </html>
-  `;
+</body>
+</html>
+`;
 
-  const printWindow = window.open("", "_blank", "width=350,height=600");
-  if (printWindow) {
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+  const win = window.open("", "_blank", "width=350,height=600");
+  if (win) {
+    win.document.write(printContent);
+    win.document.close();
   }
 
-  showToast("🧾 Imprimindo comprovante para cliente", "success");
+  showToast("Imprimindo comprovante do cliente", "success");
 }
 
 // ================================
-// BEEP CONTROL
+// BEEP CONTROL — Web Audio API (sem dependência de beep.mp3)
 // ================================
+function _beepOnce() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.35);
+    // fecha contexto após tocar para não vazar recursos
+    osc.onended = () => ctx.close();
+  } catch (e) {
+    console.warn("Web Audio não disponível:", e);
+  }
+}
+
 function startBeep(orderId) {
   if (!State.soundEnabled) return;
-
-  stopBeep(orderId);
-
-  const beepAudio = document.getElementById("beep-sound");
-
-  beepAudio.currentTime = 0;
-  beepAudio.play().catch((error) => {
-    console.log("Não foi possível reproduzir beep:", error);
-  });
-
-  State.beepIntervals[orderId] = beepAudio;
+  stopBeep(orderId); // garante que não duplica
+  _beepOnce();
+  State.beepIntervals[orderId] = setInterval(_beepOnce, 1800);
 }
 
 function stopBeep(orderId) {
   if (!State.beepIntervals[orderId]) return;
-
+  clearInterval(State.beepIntervals[orderId]);
   delete State.beepIntervals[orderId];
-
-  // Só pausa o áudio se não houver mais nenhum pedido aguardando beep
-  if (Object.keys(State.beepIntervals).length === 0) {
-    const beepAudio = document.getElementById("beep-sound");
-    beepAudio.pause();
-    beepAudio.currentTime = 0;
-  }
 }
 
 // ================================
@@ -1230,7 +1468,7 @@ function renderHistory() {
               <div class="hc-subitem-name">↳ ${sub.name}</div>
               ${sub.ponto ? `<div class="hc-detail-row"><span class="hc-tag ponto">Ponto</span>${sub.ponto}</div>` : ""}
               ${sub.sem.length ? `<div class="hc-detail-row"><span class="hc-tag sem">Sem</span>${sub.sem.join(", ")}</div>` : ""}
-              ${sub.adicionais.length ? `<div class="hc-detail-row"><span class="hc-tag add">+</span>${sub.adicionais.join(", ")}</div>` : ""}
+              ${sub.adicionais.length ? `<div class="hc-detail-row"><span class="hc-tag add">+</span>${formatAdicionais(sub.adicionais, false)}</div>` : ""}
               ${sub.obs.length ? `<div class="hc-detail-row"><span class="hc-tag obs">Obs</span>${sub.obs.join(" | ")}</div>` : ""}
             </div>
           `,
@@ -1255,7 +1493,7 @@ function renderHistory() {
             </div>
             ${parsed.ponto ? `<div class="hc-detail-row"><span class="hc-tag ponto">Ponto</span>${parsed.ponto}</div>` : ""}
             ${parsed.sem.length ? `<div class="hc-detail-row"><span class="hc-tag sem">Sem</span>${parsed.sem.join(", ")}</div>` : ""}
-            ${parsed.adicionais.length ? `<div class="hc-detail-row"><span class="hc-tag add">+</span>${parsed.adicionais.join(", ")}</div>` : ""}
+            ${parsed.adicionais.length ? `<div class="hc-detail-row"><span class="hc-tag add">+</span>${formatAdicionais(parsed.adicionais, false)}</div>` : ""}
             ${parsed.obs.length ? `<div class="hc-detail-row"><span class="hc-tag obs">Obs</span>${parsed.obs.join(" | ")}</div>` : ""}
           </div>`;
         })
@@ -1440,7 +1678,7 @@ function renderInProgressOrder(order) {
 
             if (subItem.adicionais.length > 0) {
               modsParts.push(
-                `<div class="in-progress-mod in-progress-mod-add">➕ ${subItem.adicionais.join(", ")}</div>`,
+                `<div class="in-progress-mod in-progress-mod-add">➕ ${formatAdicionais(subItem.adicionais, false)}</div>`,
               );
             }
 
@@ -1490,7 +1728,7 @@ function renderInProgressOrder(order) {
 
       if (parsed.adicionais.length > 0) {
         modsParts.push(
-          `<div class="in-progress-mod in-progress-mod-add">➕ ${parsed.adicionais.join(", ")}</div>`,
+          `<div class="in-progress-mod in-progress-mod-add">➕ ${formatAdicionais(parsed.adicionais, false)}</div>`,
         );
       }
 
@@ -1643,6 +1881,11 @@ function initUI() {
     });
   }
 
+  const btnNewOrder = document.getElementById("btn-new-order");
+  if (btnNewOrder) {
+    btnNewOrder.addEventListener("click", () => newOrderOpen());
+  }
+
   const btnSound = document.getElementById("btn-sound");
   if (btnSound) {
     btnSound.addEventListener("click", toggleSound);
@@ -1660,9 +1903,13 @@ function initUI() {
   const overlay = document.getElementById("overlay");
   if (overlay) {
     overlay.addEventListener("click", () => {
+      _aiCloseModal();
+      _discountCloseModal();
       document.querySelectorAll(".modal, .sidebar, .overlay").forEach((el) => {
         el.classList.remove("show");
       });
+      // Reset new-order state so overlay doesn't stay locked
+      if (typeof _newOrderReset === "function") _newOrderReset();
     });
   }
 
@@ -1715,6 +1962,8 @@ async function loadMenuData() {
   try {
     const response = await fetch(CONFIG.menuDataUrl);
     State.menuData = await response.json();
+    if (window.invalidateAdicionaisCache) window.invalidateAdicionaisCache();
+    invalidateAdicionaisCache();
     renderMenuCategories();
     // FIX: listeners são configurados após renderizar, usando delegação de eventos
     setupMenuListeners();
@@ -1958,7 +2207,7 @@ function loadIngredientsAvailability() {
 
 function extractIngredientsAndExtras() {
   const ingredients = new Set();
-  const paidExtras = new Set();
+  const paidExtras = new Map(); // chave: nome (deduplicação por nome — um toggle controla todos os preços)
 
   if (!State.menuData) return { ingredients: [], paidExtras: [] };
 
@@ -1988,27 +2237,36 @@ function extractIngredientsAndExtras() {
 
       if (item.adicionais) {
         item.adicionais.forEach((add) => {
-          if (typeof add === "object" && add.nome) {
-            paidExtras.add(JSON.stringify(add));
+          if (typeof add === "object" && add.nome && add.preco != null) {
+            // Deduplicar por chave composta nome_preco (ignora campo "disponivel")
+            // Usa o menor preço como referência; a chave é o nome para um toggle controlar tudo
+            if (!paidExtras.has(add.nome))
+              paidExtras.set(add.nome, { nome: add.nome, preco: add.preco });
           }
         });
       }
 
       if (item.paidExtras) {
         item.paidExtras.forEach((extra) => {
-          if (extra.nome) {
-            paidExtras.add(JSON.stringify(extra));
+          if (extra.nome && extra.preco != null) {
+            if (!paidExtras.has(extra.nome))
+              paidExtras.set(extra.nome, {
+                nome: extra.nome,
+                preco: extra.preco,
+              });
           }
         });
       }
     });
   });
 
-  const paidExtrasArray = Array.from(paidExtras).map((str) => JSON.parse(str));
+  const paidExtrasArray = Array.from(paidExtras.values());
 
   return {
     ingredients: Array.from(ingredients).sort(),
-    paidExtras: paidExtrasArray.sort((a, b) => a.nome.localeCompare(b.nome)),
+    paidExtras: paidExtrasArray.sort(
+      (a, b) => a.nome.localeCompare(b.nome) || a.preco - b.preco,
+    ),
   };
 }
 
@@ -2018,6 +2276,8 @@ async function loadIngredientsData() {
     try {
       const response = await fetch(CONFIG.menuDataUrl);
       State.menuData = await response.json();
+      if (window.invalidateAdicionaisCache) window.invalidateAdicionaisCache();
+      invalidateAdicionaisCache();
     } catch (error) {
       console.error("Erro ao carregar cardápio para insumos:", error);
       showToast("Erro ao carregar dados do cardápio", "error");
@@ -2043,6 +2303,9 @@ function renderIngredientsTab() {
   }
 
   updateIngredientsStats(ingredients, paidExtras);
+
+  // FIX: re-attach toggle listeners sempre que o HTML é re-renderizado
+  setupIngredientToggles();
 }
 
 function renderIngredientsList(ingredients) {
@@ -2123,7 +2386,6 @@ function renderPaidExtrasList(paidExtras) {
                 <div class="ingredient-icon">💰</div>
                 <div class="ingredient-details">
                   <div class="ingredient-name">${extra.nome}</div>
-                  <div class="ingredient-price">+ R$ ${extra.preco.toFixed(2)}</div>
                 </div>
               </div>
               <span class="ingredient-status ${isAvailable ? "available" : "unavailable"}">
@@ -2244,19 +2506,25 @@ function setupIngredientToggles() {
         toggle.classList.toggle("active");
         const item = toggle.closest(".ingredient-item");
         const status = item.querySelector(".ingredient-status");
+        // Nome legível para o toast: remove sufixo _preco se for adicional pago
+        const displayName =
+          type === "paid-extra"
+            ? item.querySelector(".ingredient-name")?.textContent?.trim() ||
+              name
+            : name;
 
         if (newStatus) {
           item.classList.remove("unavailable");
           status.classList.remove("unavailable");
           status.classList.add("available");
           status.textContent = "✅ Disponível";
-          showToast(`✅ ${name} disponível`, "success");
+          showToast(`✅ ${displayName} disponível`, "success");
         } else {
           item.classList.add("unavailable");
           status.classList.add("unavailable");
           status.classList.remove("available");
           status.textContent = "❌ Indisponível";
-          showToast(`❌ ${name} indisponível`, "info");
+          showToast(`❌ ${displayName} indisponível`, "info");
         }
 
         const { ingredients, paidExtras } = extractIngredientsAndExtras();
@@ -2295,6 +2563,1074 @@ async function togglePaidExtraAvailability(extra, isAvailable) {
   console.log(`💰 ${extra}: ${isAvailable ? "disponível" : "indisponível"}`);
 }
 
+// ================================================================
+// ADD ITEM MODAL — replica fiel do OrderFlow do app.js
+// ================================================================
+
+// ── Helpers internos ─────────────────────────────────────────────
+
+function _aiGetExtras(item) {
+  return item.paidExtras || item.adicionais || item.extras || [];
+}
+
+function _aiFormatPrice(v) {
+  return "R$ " + Number(v).toFixed(2).replace(".", ",");
+}
+
+function _aiGetIngredientsForBurger(item, burgerName) {
+  const n = burgerName.toLowerCase();
+  if (n.includes("simples"))
+    return item.simplesIngredients || item.ingredientesPadrao || [];
+  if (n.includes("duplo"))
+    return (
+      item.duploIngredients ||
+      item.DuploIngredients ||
+      item.ingredientesPadrao ||
+      []
+    );
+  if (n.includes("triplo"))
+    return item.triploIngredients || item.ingredientesPadrao || [];
+  if (n.includes("cremoso"))
+    return item.PromoIngredients || item.ingredientesPadrao || [];
+  if (n.includes("calabreso"))
+    return item.duploIngredients || item.ingredientesPadrao || [];
+  return (
+    item.ingredientesPadrao ||
+    item.duploIngredients ||
+    item.simplesIngredients ||
+    []
+  );
+}
+
+function _aiBuildStepsForItem(item, selectedSize) {
+  const steps = [];
+  if (item.pontoCarne) steps.push({ type: "meatPoint", data: item.pontoCarne });
+  if (item.caldas && Array.isArray(item.caldas))
+    steps.push({ type: "caldas", data: item.caldas });
+
+  let ingredients = [];
+  if (item.ingredientesPorOpcao && item.ingredientesPorOpcao[selectedSize]) {
+    ingredients = item.ingredientesPorOpcao[selectedSize];
+  } else if (item.ingredientesPadrao) {
+    ingredients = item.ingredientesPadrao;
+  } else {
+    if (Array.isArray(item.retiradas)) ingredients.push(...item.retiradas);
+    if (Array.isArray(item.ingredientes))
+      ingredients.push(...item.ingredientes);
+    if (Array.isArray(item.simplesIngredients))
+      ingredients.push(...item.simplesIngredients);
+    if (Array.isArray(item.duploIngredients))
+      ingredients.push(...item.duploIngredients);
+  }
+  const uniq = [...new Set(ingredients)].filter((i) => i && i.trim() !== "");
+  if (uniq.length) steps.push({ type: "retiradas", data: uniq });
+
+  const extras = _aiGetExtras(item).filter(
+    (e) => State.paidExtrasAvailability[e.nome] !== false,
+  );
+  if (extras.length) steps.push({ type: "extras", data: extras });
+
+  steps.push({ type: "observacoes" });
+  return steps;
+}
+
+function _aiBuildStepsForBurger(item, burgerName, ingredients) {
+  const steps = [];
+  steps.push({
+    type: "meatPoint",
+    data: ["Mal passado", "Ao ponto", "Bem passado"],
+    burgerName,
+  });
+  if (item.caldas && Array.isArray(item.caldas))
+    steps.push({ type: "caldas", data: item.caldas, burgerName });
+  if (ingredients && ingredients.length)
+    steps.push({ type: "retiradas", data: ingredients, burgerName });
+  const extras = _aiGetExtras(item).filter(
+    (e) => State.paidExtrasAvailability[e.nome] !== false,
+  );
+  if (extras.length) steps.push({ type: "extras", data: extras, burgerName });
+  steps.push({ type: "observacoes", burgerName });
+  return steps;
+}
+
+// ── Abre o modal de adicionar item ───────────────────────────────
+
+window.openAddItemModal = async function (orderId) {
+  if (!State.menuData) {
+    try {
+      const r = await fetch(CONFIG.menuDataUrl);
+      State.menuData = await r.json();
+      if (window.invalidateAdicionaisCache) window.invalidateAdicionaisCache();
+    } catch (e) {
+      showToast("Erro ao carregar cardápio", "error");
+      return;
+    }
+  }
+
+  State.addItem.orderId = orderId;
+
+  const modal = document.getElementById("kds-add-item-modal");
+  const overlay = document.getElementById("overlay");
+  modal.classList.add("show");
+  overlay.classList.add("show");
+
+  _aiRenderCatalog();
+};
+
+function _aiRenderCatalog() {
+  const body = document.getElementById("ai-modal-body");
+  const title = document.getElementById("ai-modal-title");
+  const footer = document.getElementById("ai-modal-footer");
+
+  title.textContent = "➕ Adicionar Item ao Pedido";
+  footer.innerHTML = "";
+
+  if (!State.menuData) {
+    body.innerHTML = "<p>Carregando...</p>";
+    return;
+  }
+
+  let html = "";
+  Object.entries(State.menuData).forEach(([category, items]) => {
+    html += `<div class="ai-category">
+      <div class="ai-category-title">${_aiCategoryIcon(category)} ${category}</div>
+      <div class="ai-items-grid">`;
+    items.forEach((item, itemIdx) => {
+      const itemKey = `${category}:${item.nome}`;
+      const avail = State.menuAvailability[itemKey] !== false;
+      if (item.opcoes && item.opcoes.length > 0) {
+        item.opcoes.forEach((opcao, opIdx) => {
+          const price = item.precoBase?.[opIdx] || 0;
+          const optKey = `${category}:${item.nome}:${opcao}`;
+          const optAvail = avail && State.menuAvailability[optKey] !== false;
+          html += `<button class="ai-item-btn${optAvail ? "" : " ai-unavailable"}"
+            ${optAvail ? `onclick="_aiSelectItem('${category}', ${itemIdx}, '${opcao}', ${price})"` : "disabled"}>
+            <span class="ai-item-name">${item.nome}</span>
+            <span class="ai-item-sub">${opcao}</span>
+            <span class="ai-item-price">${optAvail ? _aiFormatPrice(price) : "Indisponível"}</span>
+          </button>`;
+        });
+      } else {
+        const price = Array.isArray(item.precoBase)
+          ? item.precoBase[0]
+          : item.precoBase || 0;
+        html += `<button class="ai-item-btn${avail ? "" : " ai-unavailable"}"
+          ${avail ? `onclick="_aiSelectItem('${category}', ${itemIdx}, null, ${price})"` : "disabled"}>
+          <span class="ai-item-name">${item.nome}</span>
+          <span class="ai-item-price">${avail ? _aiFormatPrice(price) : "Indisponível"}</span>
+        </button>`;
+      }
+    });
+    html += `</div></div>`;
+  });
+  body.innerHTML = html;
+}
+
+function _aiCategoryIcon(cat) {
+  const icons = {
+    Promoções: "🎉",
+    Clones: "👥",
+    Combos: "🍔",
+    Artesanais: "🥩",
+    "Batata Frita": "🍟",
+    Bebidas: "🥤",
+  };
+  return icons[cat] || "📦";
+}
+
+// ── Usuário clicou num item do catálogo ──────────────────────────
+
+window._aiSelectItem = function (
+  category,
+  itemIdx,
+  selectedSize,
+  selectedPrice,
+) {
+  const item = State.menuData[category][itemIdx];
+
+  // Combo completo (Combos com upgrades)
+  if (item.combo && category === "Combos" && item.upgrades) {
+    State.addItem.isCombo = true;
+    State.addItem.isFullCombo = true;
+    State.addItem.comboData = {
+      nomeCombo: item.nome,
+      categoria: category,
+      selectedSize,
+      basePrice: selectedPrice,
+      itemRef: item,
+      upgrades: item.upgrades,
+      selectedBatata: null,
+      selectedBebida: null,
+      batataPriceAdjust: 0,
+      bebidaPriceAdjust: 0,
+    };
+  }
+  // Combo simples (Promoções/Clones)
+  else if (item.combo && item.burgers && item.burgers.length > 0) {
+    State.addItem.isCombo = true;
+    State.addItem.isFullCombo = false;
+    State.addItem.comboData = {
+      nomeCombo: item.nome,
+      categoria: category,
+      selectedSize,
+      basePrice: selectedPrice,
+      itemRef: item,
+    };
+  }
+  // Item único
+  else {
+    State.addItem.isCombo = false;
+    State.addItem.isFullCombo = false;
+    State.addItem.comboData = null;
+    State.addItem.tempItem = {
+      nome: item.nome,
+      img: item.img,
+      categoria: category,
+      selectedSize,
+      selectedPrice,
+      meatPoint: null,
+      selectedCaldas: [],
+      removed: [],
+      added: [],
+      obs: "",
+      finalPrice: selectedPrice,
+    };
+    State.addItem.steps = _aiBuildStepsForItem(item, selectedSize);
+    State.addItem.currentStep = 0;
+    if (State.addItem.steps.length === 0) {
+      _aiFinalizeSingleItem();
+      return;
+    }
+    _aiRenderStep();
+    return;
+  }
+
+  // Combo: começa pelo primeiro burger
+  State.addItem.currentBurgerIndex = 0;
+  State.addItem.comboItems = [];
+  State.addItem.isProcessingUpgrades = false;
+  _aiStartNextBurger();
+};
+
+function _aiStartNextBurger() {
+  const { itemRef } = State.addItem.comboData;
+  const burgerName = itemRef.burgers[State.addItem.currentBurgerIndex];
+  const ingredients = _aiGetIngredientsForBurger(itemRef, burgerName);
+  State.addItem.tempItem = {
+    nome: burgerName,
+    isPartOfCombo: true,
+    comboName: State.addItem.comboData.nomeCombo,
+    meatPoint: null,
+    selectedCaldas: [],
+    removed: [],
+    added: [],
+    obs: "",
+    finalPrice: 0,
+  };
+  State.addItem.steps = _aiBuildStepsForBurger(
+    itemRef,
+    burgerName,
+    ingredients,
+  );
+  State.addItem.currentStep = 0;
+  _aiRenderStep();
+}
+
+// ── Renderiza o step atual ────────────────────────────────────────
+
+function _aiRenderStep() {
+  const step = State.addItem.steps[State.addItem.currentStep];
+  const body = document.getElementById("ai-modal-body");
+  const title = document.getElementById("ai-modal-title");
+  const footer = document.getElementById("ai-modal-footer");
+
+  // Dots de progresso
+  const dotsHtml = State.addItem.steps
+    .map(
+      (_, i) =>
+        `<div class="ai-dot${i === State.addItem.currentStep ? " active" : ""}"></div>`,
+    )
+    .join("");
+
+  // Botões de navegação
+  const isLast = State.addItem.currentStep === State.addItem.steps.length - 1;
+  let nextLabel = "PRÓXIMO";
+  if (State.addItem.isProcessingUpgrades && isLast)
+    nextLabel = "ADICIONAR COMBO";
+  else if (State.addItem.isCombo) {
+    const isLastBurger =
+      State.addItem.currentBurgerIndex ===
+      State.addItem.comboData.itemRef.burgers.length - 1;
+    if (isLast && isLastBurger)
+      nextLabel = State.addItem.isFullCombo ? "PRÓXIMO" : "ADICIONAR COMBO";
+    else if (isLast) nextLabel = "PRÓXIMO ITEM";
+  } else if (isLast) nextLabel = "ADICIONAR AO PEDIDO";
+
+  const backBtn =
+    State.addItem.currentStep > 0
+      ? `<button class="btn-order btn-small" onclick="_aiPrevStep()" style="background:#333;color:#fff;">← Voltar</button>`
+      : `<button class="btn-order btn-small" onclick="_aiBackToCatalog()" style="background:#333;color:#fff;">📋 Catálogo</button>`;
+
+  footer.innerHTML = `
+    <div class="ai-progress-dots">${dotsHtml}</div>
+    <div class="ai-footer-btns">
+      ${backBtn}
+      <button class="btn-order btn-accept" onclick="_aiNextStep()">${nextLabel}</button>
+    </div>`;
+
+  // Renderiza o conteúdo do step
+  switch (step.type) {
+    case "meatPoint":
+      _aiRenderMeatPoint(title, body, step);
+      break;
+    case "caldas":
+      _aiRenderCaldas(title, body, step);
+      break;
+    case "retiradas":
+      _aiRenderRetiradas(title, body, step);
+      break;
+    case "extras":
+      _aiRenderExtras(title, body, step);
+      break;
+    case "observacoes":
+      _aiRenderObs(title, body, step);
+      break;
+    case "batataUpgrade":
+      _aiRenderBatataUpgrade(title, body, step);
+      break;
+    case "bebidaUpgrade":
+      _aiRenderBebidaUpgrade(title, body, step);
+      break;
+  }
+}
+
+// ── Renders de cada step ─────────────────────────────────────────
+
+function _aiRenderMeatPoint(title, body, step) {
+  title.textContent = `${step.burgerName || State.addItem.tempItem.nome} — Ponto da Carne 🥩`;
+  body.innerHTML = step.data
+    .map(
+      (opt, i) => `
+    <div class="ai-option-row">
+      <label for="ai-meat-${i}" style="flex:1;cursor:pointer;">${opt}</label>
+      <input type="radio" id="ai-meat-${i}" name="ai-meatPoint" value="${opt}"
+        ${State.addItem.tempItem.meatPoint === opt ? "checked" : ""}>
+    </div>`,
+    )
+    .join("");
+  body
+    .querySelectorAll("input")
+    .forEach(
+      (inp) =>
+        (inp.onchange = (e) =>
+          (State.addItem.tempItem.meatPoint = e.target.value)),
+    );
+}
+
+function _aiRenderCaldas(title, body, step) {
+  title.textContent = `${step.burgerName || State.addItem.tempItem.nome} — Escolha a Calda 🍯`;
+  if (!State.addItem.tempItem.selectedCaldas)
+    State.addItem.tempItem.selectedCaldas = [];
+  body.innerHTML = step.data
+    .map(
+      (opt, i) => `
+    <div class="ai-option-row">
+      <label for="ai-calda-${i}" style="flex:1;cursor:pointer;">${opt}</label>
+      <input type="radio" name="ai-calda" id="ai-calda-${i}" value="${opt}"
+        ${State.addItem.tempItem.selectedCaldas.includes(opt) ? "checked" : ""}>
+    </div>`,
+    )
+    .join("");
+  body
+    .querySelectorAll("input")
+    .forEach(
+      (inp) =>
+        (inp.onchange = (e) =>
+          (State.addItem.tempItem.selectedCaldas = [e.target.value])),
+    );
+}
+
+function _aiRenderRetiradas(title, body, step) {
+  title.textContent = `${step.burgerName || State.addItem.tempItem.nome} — Retirar Ingredientes ❌`;
+  if (!State.addItem.tempItem.removed) State.addItem.tempItem.removed = [];
+  const avail = step.data.filter(
+    (ing) => State.ingredientsAvailability[ing] !== false,
+  );
+  if (!avail.length) {
+    body.innerHTML = `<p style="color:var(--text-muted);padding:20px;text-align:center;">Nenhum ingrediente disponível.</p>`;
+    return;
+  }
+  body.innerHTML = avail
+    .map(
+      (ing, i) => `
+    <div class="ai-option-row">
+      <label for="ai-rem-${i}" style="flex:1;cursor:pointer;">${ing}</label>
+      <input type="checkbox" id="ai-rem-${i}" value="${ing}"
+        ${State.addItem.tempItem.removed.includes(ing) ? "checked" : ""}>
+    </div>`,
+    )
+    .join("");
+  body.querySelectorAll("input").forEach(
+    (inp) =>
+      (inp.onchange = (e) => {
+        const v = e.target.value;
+        if (e.target.checked) {
+          if (!State.addItem.tempItem.removed.includes(v))
+            State.addItem.tempItem.removed.push(v);
+        } else {
+          const idx = State.addItem.tempItem.removed.indexOf(v);
+          if (idx > -1) State.addItem.tempItem.removed.splice(idx, 1);
+        }
+      }),
+  );
+}
+
+function _aiRenderExtras(title, body, step) {
+  title.textContent = `${step.burgerName || State.addItem.tempItem.nome} — Adicionais Pagos 💰`;
+  if (!State.addItem.tempItem.added) State.addItem.tempItem.added = [];
+  const avail = step.data.filter(
+    (e) => State.paidExtrasAvailability[e.nome] !== false,
+  );
+  if (!avail.length) {
+    body.innerHTML = `<p style="color:var(--text-muted);padding:20px;text-align:center;">Nenhum adicional disponível.</p>`;
+    return;
+  }
+  body.innerHTML = avail
+    .map(
+      (extra, i) => `
+    <div class="ai-option-row">
+      <label for="ai-ext-${i}" style="flex:1;cursor:pointer;">
+        ${extra.nome} <span style="color:var(--primary);">+ ${_aiFormatPrice(extra.preco)}</span>
+      </label>
+      <input type="checkbox" id="ai-ext-${i}" value="${i}"
+        ${State.addItem.tempItem.added.some((a) => a.nome === extra.nome) ? "checked" : ""}>
+    </div>`,
+    )
+    .join("");
+  body.querySelectorAll("input").forEach(
+    (inp) =>
+      (inp.onchange = (e) => {
+        const extra = avail[parseInt(e.target.value)];
+        if (e.target.checked) {
+          if (!State.addItem.tempItem.added.some((a) => a.nome === extra.nome))
+            State.addItem.tempItem.added.push({
+              nome: extra.nome,
+              preco: extra.preco,
+            });
+        } else {
+          const idx = State.addItem.tempItem.added.findIndex(
+            (a) => a.nome === extra.nome,
+          );
+          if (idx > -1) State.addItem.tempItem.added.splice(idx, 1);
+        }
+      }),
+  );
+}
+
+function _aiRenderObs(title, body, step) {
+  title.textContent = `${step.burgerName || State.addItem.tempItem.nome} — Observações 💬`;
+  body.innerHTML = `<textarea id="ai-obs-input" placeholder="Observação especial..." style="width:100%;min-height:110px;padding:14px;background:#111;border:1px solid var(--border);border-radius:10px;color:#fff;font-size:0.95rem;resize:vertical;outline:none;">${State.addItem.tempItem.obs || ""}</textarea>`;
+  body.querySelector("#ai-obs-input").oninput = (e) =>
+    (State.addItem.tempItem.obs = e.target.value);
+}
+
+function _aiRenderBatataUpgrade(title, body, step) {
+  title.textContent = "Escolha a Batata 🍟";
+  const upgrades = step.data;
+  if (!State.addItem.comboData.selectedBatata) {
+    State.addItem.comboData.selectedBatata = upgrades[0].nome;
+    State.addItem.comboData.batataPriceAdjust = upgrades[0].adicional || 0;
+  }
+  body.innerHTML = upgrades
+    .map((opt, i) => {
+      const priceText =
+        opt.adicional > 0
+          ? `+${_aiFormatPrice(opt.adicional)}`
+          : opt.adicional < 0
+            ? _aiFormatPrice(opt.adicional)
+            : "Inclusa";
+      return `<div class="ai-option-row">
+      <label for="ai-bat-${i}" style="flex:1;cursor:pointer;">${opt.nome} <span style="color:var(--primary);">${priceText}</span></label>
+      <input type="radio" id="ai-bat-${i}" name="ai-batata" value="${i}" ${State.addItem.comboData.selectedBatata === opt.nome ? "checked" : ""}>
+    </div>`;
+    })
+    .join("");
+  body.querySelectorAll("input").forEach(
+    (inp) =>
+      (inp.onchange = (e) => {
+        const sel = upgrades[parseInt(e.target.value)];
+        State.addItem.comboData.selectedBatata = sel.nome;
+        State.addItem.comboData.batataPriceAdjust = sel.adicional || 0;
+      }),
+  );
+}
+
+function _aiRenderBebidaUpgrade(title, body, step) {
+  title.textContent = "Escolha a Bebida 🥤";
+  const upgrades = step.data;
+  if (!State.addItem.comboData.selectedBebida) {
+    State.addItem.comboData.selectedBebida = upgrades[0].nome;
+    State.addItem.comboData.bebidaPriceAdjust = upgrades[0].adicional || 0;
+  }
+  body.innerHTML = upgrades
+    .map((opt, i) => {
+      const priceText =
+        opt.adicional > 0
+          ? `+${_aiFormatPrice(opt.adicional)}`
+          : opt.adicional < 0
+            ? _aiFormatPrice(opt.adicional)
+            : "Inclusa";
+      return `<div class="ai-option-row">
+      <label for="ai-beb-${i}" style="flex:1;cursor:pointer;">${opt.nome} <span style="color:var(--primary);">${priceText}</span></label>
+      <input type="radio" id="ai-beb-${i}" name="ai-bebida" value="${i}" ${State.addItem.comboData.selectedBebida === opt.nome ? "checked" : ""}>
+    </div>`;
+    })
+    .join("");
+  body.querySelectorAll("input").forEach(
+    (inp) =>
+      (inp.onchange = (e) => {
+        const sel = upgrades[parseInt(e.target.value)];
+        State.addItem.comboData.selectedBebida = sel.nome;
+        State.addItem.comboData.bebidaPriceAdjust = sel.adicional || 0;
+      }),
+  );
+}
+
+// ── Navegação entre steps ────────────────────────────────────────
+
+window._aiNextStep = function () {
+  const step = State.addItem.steps[State.addItem.currentStep];
+
+  // Validar calda obrigatória
+  if (
+    step.type === "caldas" &&
+    (!State.addItem.tempItem.selectedCaldas ||
+      !State.addItem.tempItem.selectedCaldas.length)
+  ) {
+    showToast("⚠️ Escolha uma calda para continuar", "warning");
+    return;
+  }
+
+  if (State.addItem.currentStep < State.addItem.steps.length - 1) {
+    State.addItem.currentStep++;
+    _aiRenderStep();
+  } else {
+    _aiCompleteCurrentItem();
+  }
+};
+
+window._aiPrevStep = function () {
+  if (State.addItem.currentStep > 0) {
+    State.addItem.currentStep--;
+    _aiRenderStep();
+  }
+};
+
+window._aiBackToCatalog = function () {
+  _aiRenderCatalog();
+  document.getElementById("ai-modal-footer").innerHTML = "";
+  document.getElementById("ai-modal-title").textContent =
+    "➕ Adicionar Item ao Pedido";
+};
+
+function _aiCompleteCurrentItem() {
+  if (State.addItem.isProcessingUpgrades) {
+    State.addItem.isProcessingUpgrades = false;
+    _aiFinalizeCombo();
+    return;
+  }
+
+  if (State.addItem.isCombo) {
+    // Salva burger atual
+    const extrasTotal = (State.addItem.tempItem.added || []).reduce(
+      (s, a) => s + a.preco,
+      0,
+    );
+    State.addItem.tempItem.finalPrice = extrasTotal;
+    State.addItem.comboItems.push({ ...State.addItem.tempItem });
+    State.addItem.currentBurgerIndex++;
+
+    if (
+      State.addItem.currentBurgerIndex <
+      State.addItem.comboData.itemRef.burgers.length
+    ) {
+      _aiStartNextBurger();
+    } else if (State.addItem.isFullCombo) {
+      // Upgrades de batata/bebida
+      State.addItem.steps = [
+        {
+          type: "batataUpgrade",
+          data: State.addItem.comboData.upgrades.batata,
+        },
+        {
+          type: "bebidaUpgrade",
+          data: State.addItem.comboData.upgrades.bebida,
+        },
+      ];
+      State.addItem.currentStep = 0;
+      State.addItem.isProcessingUpgrades = true;
+      _aiRenderStep();
+    } else {
+      _aiFinalizeCombo();
+    }
+  } else {
+    _aiFinalizeSingleItem();
+  }
+}
+
+function _aiFinalizeSingleItem() {
+  const extrasTotal = (State.addItem.tempItem.added || []).reduce(
+    (s, a) => s + a.preco,
+    0,
+  );
+  State.addItem.tempItem.finalPrice =
+    (State.addItem.tempItem.selectedPrice || 0) + extrasTotal;
+  _aiAddItemToOrder(State.addItem.tempItem);
+}
+
+function _aiFinalizeCombo() {
+  const totalExtras = State.addItem.comboItems.reduce(
+    (s, it) => s + it.finalPrice,
+    0,
+  );
+  const finalPrice =
+    State.addItem.comboData.basePrice +
+    totalExtras +
+    (State.addItem.comboData.batataPriceAdjust || 0) +
+    (State.addItem.comboData.bebidaPriceAdjust || 0);
+
+  const comboItem = {
+    nome: State.addItem.comboData.nomeCombo,
+    img: State.addItem.comboData.itemRef.img,
+    categoria: State.addItem.comboData.categoria,
+    selectedSize: State.addItem.comboData.selectedSize,
+    selectedPrice: State.addItem.comboData.basePrice,
+    isCombo: true,
+    burgers: State.addItem.comboItems,
+    selectedBatata: State.addItem.comboData.selectedBatata || null,
+    selectedBebida: State.addItem.comboData.selectedBebida || null,
+    finalPrice,
+  };
+  _aiAddItemToOrder(comboItem);
+}
+
+// ── Persiste o novo item no Firebase ────────────────────────────
+
+async function _aiAddItemToOrder(newItem) {
+  // ── New-order mode: redirect to local cart ───────────────────────
+  if (State.addItem.orderId === "__new_order__") {
+    _newOrderReceiveItem(newItem);
+    return;
+  }
+
+  const orderId = State.addItem.orderId;
+  const order = State.orders[orderId];
+  if (!order || !State.database) return;
+
+  // Monta objeto no formato do cardápio (compatível com parseOrderItem)
+  const observacoes = [];
+  if (newItem.isCombo && newItem.burgers) {
+    newItem.burgers.forEach((b) => {
+      observacoes.push(`---${b.nome}---`);
+      if (b.meatPoint) observacoes.push(`Ponto: ${b.meatPoint}`);
+      if (b.removed && b.removed.length)
+        observacoes.push(`Sem: ${b.removed.join(", ")}`);
+      if (b.added && b.added.length)
+        observacoes.push(
+          `Adicionais: ${b.added.map((a) => a.nome).join(", ")}`,
+        );
+      if (b.obs) observacoes.push(b.obs);
+    });
+    if (newItem.selectedBatata)
+      observacoes.push(`Batata: ${newItem.selectedBatata}`);
+    if (newItem.selectedBebida)
+      observacoes.push(`Bebida: ${newItem.selectedBebida}`);
+  } else {
+    if (newItem.selectedSize)
+      observacoes.push(`Tamanho: ${newItem.selectedSize}`);
+    if (newItem.meatPoint) observacoes.push(`Ponto: ${newItem.meatPoint}`);
+    if (newItem.selectedCaldas && newItem.selectedCaldas.length)
+      observacoes.push(`Caldas: ${newItem.selectedCaldas.join(", ")}`);
+    if (newItem.removed && newItem.removed.length)
+      observacoes.push(`Sem: ${newItem.removed.join(", ")}`);
+    if (newItem.added && newItem.added.length)
+      observacoes.push(
+        `Adicionais: ${newItem.added.map((a) => a.nome).join(", ")}`,
+      );
+    if (newItem.obs) observacoes.push(newItem.obs);
+  }
+
+  const itemFormatado = {
+    nome: newItem.nome,
+    quantidade: 1,
+    observacao: observacoes.join(
+      observacoes.some((o) => o.startsWith("---")) ? "|" : " | ",
+    ),
+    _kdsAdded: true, // marca que foi adicionado pelo KDS
+  };
+  if (newItem.finalPrice) itemFormatado._precoOriginal = newItem.finalPrice;
+  if (newItem.meatPoint) itemFormatado.ponto = newItem.meatPoint;
+  if (newItem.removed && newItem.removed.length)
+    itemFormatado.retiradas = newItem.removed;
+  if (newItem.added && newItem.added.length)
+    itemFormatado.adicionais = newItem.added.map((a) => ({
+      nome: a.nome,
+      preco: a.preco,
+    }));
+
+  const updatedItens = [...(order.itens || []), itemFormatado];
+  const newTotal = (order.total || 0) + (newItem.finalPrice || 0);
+
+  try {
+    await State.database.ref(`pedidos/${orderId}`).update({
+      itens: updatedItens,
+      total: newTotal,
+    });
+    showToast(`✅ ${newItem.nome} adicionado ao pedido!`, "success");
+    _aiCloseModal();
+  } catch (e) {
+    console.error("Erro ao adicionar item:", e);
+    showToast("Erro ao adicionar item", "error");
+  }
+}
+
+function _aiCloseModal() {
+  document.getElementById("kds-add-item-modal").classList.remove("show");
+  // In new-order mode keep the overlay so the new-order modal stays visible
+  if (State.addItem.orderId === "__new_order__") return;
+  document.getElementById("overlay").classList.remove("show");
+}
+
+// ================================================================
+// DISCOUNT MODAL
+// ================================================================
+
+window.openDiscountModal = function (orderId) {
+  const order = State.orders[orderId];
+  if (!order || !order.itens || !order.itens.length) {
+    showToast("Pedido sem itens para descontar", "warning");
+    return;
+  }
+
+  State.discount.orderId = orderId;
+  State.discount.itemIndex = null;
+
+  const modal = document.getElementById("kds-discount-modal");
+  const overlay = document.getElementById("overlay");
+  modal.classList.add("show");
+  overlay.classList.add("show");
+
+  _discountRenderItemSelect(order);
+};
+
+function _discountRenderItemSelect(order) {
+  const body = document.getElementById("disc-modal-body");
+  const title = document.getElementById("disc-modal-title");
+  title.textContent = "🏷️ Aplicar Desconto";
+
+  body.innerHTML = `
+    <p style="color:var(--text-muted);margin-bottom:14px;font-size:0.9rem;">Selecione o item e informe o desconto:</p>
+    <div id="disc-item-list">
+      ${order.itens
+        .map((item, idx) => {
+          const nome = item.nome || "Item";
+          const precoAtual =
+            item._precoDesconto || item._precoOriginal || item.preco || null;
+          const precoLabel = precoAtual
+            ? ` — <span style="color:var(--primary)">${_aiFormatPrice(precoAtual)}</span>`
+            : "";
+          const temDesc = item._desconto
+            ? ` <span style="color:var(--secondary);font-size:0.8rem;">(desc. ${item._desconto})</span>`
+            : "";
+          return `<button class="disc-item-btn" onclick="_discountSelectItem(${idx})" id="disc-btn-${idx}">
+          <span>${item.quantidade || 1}x ${nome}${precoLabel}${temDesc}</span>
+          <span class="disc-item-arrow">›</span>
+        </button>`;
+        })
+        .join("")}
+    </div>
+
+    <div id="disc-form" style="display:none;margin-top:20px;">
+      <div id="disc-item-name" style="font-weight:700;color:var(--primary);margin-bottom:12px;font-size:1rem;"></div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;margin-bottom:6px;font-size:0.85rem;color:var(--text-muted);">Tipo de desconto</label>
+        <div style="display:flex;gap:10px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="disc-type" value="percent" checked onchange="_discountSwitchType()"> Percentual (%)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="radio" name="disc-type" value="fixed" onchange="_discountSwitchType()"> Valor fixo (R$)
+          </label>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;margin-bottom:6px;font-size:0.85rem;color:var(--text-muted);" id="disc-input-label">Percentual de desconto</label>
+        <input type="number" id="disc-value-input" min="0" step="0.01" placeholder="Ex: 10"
+          oninput="_discountUpdatePreview()"
+          style="width:100%;padding:12px;background:#1a1a1a;border:2px solid var(--border);border-radius:8px;color:#fff;font-size:1.1rem;outline:none;">
+      </div>
+      <div id="disc-preview" style="padding:14px;background:rgba(255,193,7,0.07);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;text-align:center;transition:border-color 0.2s;">
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.5px;">Preço atual</div>
+        <div id="disc-current-price" style="font-size:2rem;font-weight:800;color:var(--primary);line-height:1.1;"></div>
+        <div id="disc-original-row" style="display:none;margin-top:6px;">
+          <div style="font-size:0.78rem;color:var(--text-muted);">Preço original</div>
+          <div id="disc-original-price" style="font-size:0.95rem;text-decoration:line-through;color:#777;"></div>
+        </div>
+        <div id="disc-saving" style="font-size:0.82rem;color:var(--secondary);margin-top:6px;min-height:1.2em;"></div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-order" onclick="_discountBack()" style="background:#333;flex:1;">← Voltar</button>
+        <button class="btn-order btn-accept" onclick="_discountApply()" style="flex:2;">✅ Aplicar Desconto</button>
+      </div>
+    </div>`;
+}
+
+window._discountSelectItem = function (idx) {
+  const order = State.orders[State.discount.orderId];
+  const item = order.itens[idx];
+  State.discount.itemIndex = idx;
+
+  // Destaca o selecionado
+  document
+    .querySelectorAll(".disc-item-btn")
+    .forEach((b) => b.classList.remove("selected"));
+  const btn = document.getElementById(`disc-btn-${idx}`);
+  if (btn) btn.classList.add("selected");
+
+  // Mostra o formulário
+  const form = document.getElementById("disc-form");
+  form.style.display = "block";
+  // Monta nome com tamanho se disponível (ex: "Smash (Duplo)")
+  const parsed_disc = parseOrderItem(item);
+  const nomeDisc = parsed_disc.tamanho
+    ? `${item.nome} (${parsed_disc.tamanho})`
+    : item.nome;
+  document.getElementById("disc-item-name").textContent =
+    `${item.quantidade || 1}x ${nomeDisc}`;
+
+  // Preço base do item — tenta todas as fontes possíveis
+  const precoBase =
+    item._precoOriginal || item.preco || item.precoTotal || null;
+  form.dataset.precoBase = precoBase != null ? precoBase : "";
+
+  // Limpa input e reseta o tipo para percentual
+  document.getElementById("disc-value-input").value = "";
+  document.querySelector('input[name="disc-type"][value="percent"]').checked =
+    true;
+  document.getElementById("disc-input-label").textContent =
+    "Percentual de desconto";
+  document.getElementById("disc-value-input").placeholder = "Ex: 10";
+  document.getElementById("disc-value-input").setAttribute("max", "100");
+
+  // Mostra preço atual imediatamente
+  _discountRefreshPriceDisplay();
+};
+
+// Chamada ao trocar o tipo: reseta o input e atualiza label/placeholder imediatamente
+window._discountSwitchType = function () {
+  const inputEl = document.getElementById("disc-value-input");
+  const labelEl = document.getElementById("disc-input-label");
+  const type =
+    document.querySelector('input[name="disc-type"]:checked')?.value ||
+    "percent";
+  const form = document.getElementById("disc-form");
+  const precoBase = parseFloat(form.dataset.precoBase);
+
+  // Resetar valor e atualizar display com preço atual
+  inputEl.value = "";
+  _discountRefreshPriceDisplay();
+
+  if (type === "percent") {
+    labelEl.textContent = "Percentual de desconto";
+    inputEl.placeholder = "Ex: 10";
+    inputEl.setAttribute("max", "100");
+  } else {
+    labelEl.textContent = "Novo valor do item (R$)";
+    inputEl.placeholder =
+      precoBase && !isNaN(precoBase)
+        ? `Ex: ${(precoBase * 0.8).toFixed(2).replace(".", ",")}`
+        : "Ex: 15,00";
+    inputEl.removeAttribute("max");
+  }
+
+  // Foco imediato no input para agilizar digitação
+  inputEl.focus();
+};
+
+// Atualiza o display de preço em tempo real (chamado ao digitar)
+window._discountUpdatePreview = function () {
+  _discountRefreshPriceDisplay();
+};
+
+// Núcleo do display — sempre visível, atualiza conforme input
+function _discountRefreshPriceDisplay() {
+  const form = document.getElementById("disc-form");
+  const precoBase = parseFloat(form.dataset.precoBase);
+  const type =
+    document.querySelector('input[name="disc-type"]:checked')?.value ||
+    "percent";
+  const rawVal = document.getElementById("disc-value-input").value;
+  const val = parseFloat(rawVal);
+  const previewEl = document.getElementById("disc-preview");
+  const currentEl = document.getElementById("disc-current-price");
+  const originalRow = document.getElementById("disc-original-row");
+  const originalEl = document.getElementById("disc-original-price");
+  const savingEl = document.getElementById("disc-saving");
+
+  // Sem preço registrado
+  if (!precoBase || isNaN(precoBase)) {
+    currentEl.textContent = "—";
+    currentEl.style.color = "var(--text-muted)";
+    originalRow.style.display = "none";
+    savingEl.textContent = "ℹ️ Sem preço registrado — desconto será anotado";
+    previewEl.style.borderColor = "var(--border)";
+    return;
+  }
+
+  // Sem valor digitado ainda → mostra preço atual sem modificação
+  if (rawVal === "" || isNaN(val) || val <= 0) {
+    currentEl.textContent = _aiFormatPrice(precoBase);
+    currentEl.style.color = "var(--primary)";
+    originalRow.style.display = "none";
+    savingEl.textContent = "";
+    previewEl.style.borderColor = "var(--border)";
+    return;
+  }
+
+  // Calcula novo preço
+  let novoPreco;
+  if (type === "percent") {
+    novoPreco = precoBase * (1 - val / 100);
+  } else {
+    novoPreco = val; // valor fixo = novo preço final
+  }
+  novoPreco = Math.max(0, novoPreco);
+
+  const economia = precoBase - novoPreco;
+
+  // Atualiza display
+  currentEl.textContent = _aiFormatPrice(novoPreco);
+  currentEl.style.color = economia > 0 ? "var(--secondary)" : "var(--primary)";
+
+  if (economia > 0) {
+    originalRow.style.display = "block";
+    originalEl.textContent = _aiFormatPrice(precoBase);
+    savingEl.textContent =
+      type === "percent"
+        ? `↓ ${val}% de desconto — economia de ${_aiFormatPrice(economia)}`
+        : `↓ economia de ${_aiFormatPrice(economia)}`;
+    previewEl.style.borderColor = "var(--secondary)";
+  } else {
+    originalRow.style.display = "none";
+    savingEl.textContent = "";
+    previewEl.style.borderColor = "var(--border)";
+  }
+}
+
+window._discountBack = function () {
+  document.getElementById("disc-form").style.display = "none";
+  document
+    .querySelectorAll(".disc-item-btn")
+    .forEach((b) => b.classList.remove("selected"));
+  State.discount.itemIndex = null;
+};
+
+window._discountApply = async function () {
+  const { orderId, itemIndex } = State.discount;
+  const order = State.orders[orderId];
+  if (!order || itemIndex === null) return;
+
+  const item = order.itens[itemIndex];
+  const form = document.getElementById("disc-form");
+  const precoBase = parseFloat(form.dataset.precoBase);
+  const type =
+    document.querySelector('input[name="disc-type"]:checked')?.value ||
+    "percent";
+  const val = parseFloat(document.getElementById("disc-value-input").value);
+
+  if (isNaN(val) || val <= 0) {
+    showToast("⚠️ Informe um valor de desconto válido", "warning");
+    return;
+  }
+
+  let novoPreco = null;
+  let descontoLabel = "";
+
+  if (precoBase && !isNaN(precoBase)) {
+    if (type === "percent") {
+      novoPreco = Math.max(0, precoBase * (1 - val / 100));
+      descontoLabel = `${val}%`;
+    } else {
+      // "fixed": val é o novo preço final informado pelo usuário
+      novoPreco = Math.max(0, val);
+      const economia = precoBase - novoPreco;
+      descontoLabel = `R$ ${Number(novoPreco).toFixed(2).replace(".", ",")} (ec. ${_aiFormatPrice(economia)})`;
+    }
+  } else {
+    descontoLabel =
+      type === "percent"
+        ? `${val}%`
+        : `- R$ ${Number(val).toFixed(2).replace(".", ",")}`;
+  }
+
+  // Atualiza item localmente
+  const updatedItens = [...order.itens];
+  const precoOriginalFinal =
+    precoBase && !isNaN(precoBase)
+      ? precoBase
+      : updatedItens[itemIndex]._precoOriginal || null;
+
+  updatedItens[itemIndex] = {
+    ...updatedItens[itemIndex],
+    _precoOriginal: precoOriginalFinal,
+    _precoDesconto: novoPreco !== null && !isNaN(novoPreco) ? novoPreco : null,
+    _desconto: descontoLabel || null,
+  };
+
+  // Remove campos null/NaN para não quebrar o Firebase
+  Object.keys(updatedItens[itemIndex]).forEach((k) => {
+    if (
+      updatedItens[itemIndex][k] === null ||
+      updatedItens[itemIndex][k] === undefined ||
+      (typeof updatedItens[itemIndex][k] === "number" &&
+        isNaN(updatedItens[itemIndex][k]))
+    ) {
+      delete updatedItens[itemIndex][k];
+    }
+  });
+
+  // Recalcula total do pedido
+  let newTotal = order.total || 0;
+  if (
+    novoPreco !== null &&
+    !isNaN(novoPreco) &&
+    precoOriginalFinal &&
+    !isNaN(precoOriginalFinal)
+  ) {
+    const diff = novoPreco - precoOriginalFinal;
+    newTotal = Math.max(0, newTotal + diff);
+  }
+
+  try {
+    await State.database.ref(`pedidos/${orderId}`).update({
+      itens: updatedItens,
+      total: newTotal,
+    });
+    showToast(`🏷️ Desconto aplicado: ${descontoLabel}`, "success");
+    _discountCloseModal();
+  } catch (e) {
+    console.error("Erro ao aplicar desconto:", e);
+    showToast("Erro ao aplicar desconto", "error");
+  }
+};
+
+function _discountCloseModal() {
+  document.getElementById("kds-discount-modal").classList.remove("show");
+  document.getElementById("overlay").classList.remove("show");
+}
+
+// Fechar modais ao clicar no overlay — lógica centralizada em initUI()
+
 // ================================
 // INITIALIZATION
 // ================================
@@ -2309,3 +3645,528 @@ window.initKDS = function () {
 
 // initKDS é chamado exclusivamente pelo firebase-init-auth.js após autenticação confirmada.
 console.log("🔐 KDS aguardando autenticação...");
+
+// ================================================================
+// CRIAR PEDIDO — NEW ORDER FROM KDS
+// ================================================================
+
+// ── State ─────────────────────────────────────────────────────────
+const _NO = {
+  step: "tipo", // "tipo" | "info" | "cart" | "pagto"
+  tipo: null, // "totem" | "delivery"
+  info: {},
+  cart: [],
+};
+
+// Bairros com taxas (espelha o app de delivery)
+const _NO_BAIRROS = [
+  { v: "cajueiro", t: "Cajueiro", fee: 6 },
+  { v: "barros-filho", t: "Barros Filho", fee: 6 },
+  { v: "vicente-carvalho", t: "Vicente Carvalho", fee: 6 },
+  { v: "coelho-neto", t: "Coelho Neto", fee: 6 },
+  { v: "cosmos", t: "Cosmos", fee: 8 },
+  { v: "pavuna", t: "Pavuna", fee: 8 },
+  { v: "campo-grande", t: "Campo Grande", fee: 0 },
+  { v: "outro", t: "Outro / Combinar taxa", fee: 0 },
+];
+
+function _fmt(n) {
+  return `R$ ${Number(n).toFixed(2).replace(".", ",")}`;
+}
+
+// ── Open / close ──────────────────────────────────────────────────
+window.newOrderOpen = async function () {
+  if (!State.menuData) {
+    try {
+      const r = await fetch(CONFIG.menuDataUrl);
+      State.menuData = await r.json();
+      if (window.invalidateAdicionaisCache) window.invalidateAdicionaisCache();
+    } catch {
+      showToast("Erro ao carregar cardápio", "error");
+      return;
+    }
+  }
+  _NO.step = "tipo";
+  _NO.tipo = null;
+  _NO.info = {};
+  _NO.cart = [];
+  document.getElementById("new-order-modal").classList.add("show");
+  document.getElementById("overlay").classList.add("show");
+  _noRender();
+};
+
+window.newOrderClose = function () {
+  document.getElementById("new-order-modal").classList.remove("show");
+  document.getElementById("overlay").classList.remove("show");
+  // Reset addItem orderId so subsequent normal adds aren't broken
+  State.addItem.orderId = null;
+};
+
+window._newOrderReset = function () {
+  State.addItem.orderId = null;
+};
+
+// ── Step router ───────────────────────────────────────────────────
+function _noRender() {
+  if (_NO.step === "tipo") _noRenderTipo();
+  else if (_NO.step === "info") _noRenderInfo();
+  else if (_NO.step === "cart") _noRenderCart();
+  else if (_NO.step === "pagto") _noRenderPagto();
+}
+
+// ── STEP 1 — Tipo ─────────────────────────────────────────────────
+function _noRenderTipo() {
+  document.getElementById("no-title").textContent = "🧾 Criar Pedido";
+  document.getElementById("no-footer").innerHTML = "";
+  document.getElementById("no-body").innerHTML = `
+    <p class="no-desc">Selecione a origem do pedido:</p>
+    <div class="no-tipo-grid">
+      <button class="no-tipo-btn" onclick="_noPickTipo('totem')">
+        <span class="no-tipo-icon">🪑</span>
+        <strong>Totem / Mesa</strong>
+        <span class="no-tipo-sub">Consumo no local</span>
+      </button>
+      <button class="no-tipo-btn" onclick="_noPickTipo('delivery')">
+        <span class="no-tipo-icon">🛵</span>
+        <strong>Delivery</strong>
+        <span class="no-tipo-sub">Entrega ou retirada</span>
+      </button>
+    </div>`;
+}
+
+window._noPickTipo = function (tipo) {
+  _NO.tipo = tipo;
+  _NO.step = "info";
+  _noRender();
+};
+
+// ── STEP 2 — Info (nome + endereço/bairro apenas) ─────────────────
+function _noRenderInfo() {
+  const isD = _NO.tipo === "delivery";
+  document.getElementById("no-title").textContent = isD
+    ? "🛵 Identificação — Delivery"
+    : "🪑 Identificação — Mesa/Totem";
+
+  const bairroOpts = _NO_BAIRROS
+    .map(
+      (b) =>
+        `<option value="${b.v}" data-fee="${b.fee}">${b.t}${b.fee > 0 ? " (+R$ " + b.fee.toFixed(2).replace(".", ",") + ")" : b.v !== "outro" ? " (grátis)" : ""}</option>`,
+    )
+    .join("");
+
+  const endBlock = isD
+    ? `
+    <div class="no-field">
+      <label class="no-label">Endereço</label>
+      <input class="no-input" id="no-endereco" type="text" placeholder="Rua, número...">
+    </div>
+    <div class="no-field">
+      <label class="no-label">Bairro</label>
+      <select class="no-input" id="no-bairro" onchange="_noOnBairro()">
+        <option value="">— Selecione —</option>${bairroOpts}
+      </select>
+      <span class="no-taxa-tag" id="no-taxa-tag"></span>
+    </div>`
+    : "";
+
+  document.getElementById("no-body").innerHTML = `
+    <div class="no-form">
+      <div class="no-field">
+        <label class="no-label">Nome do Cliente *</label>
+        <input class="no-input" id="no-nome" type="text" placeholder="Ex: João...">
+      </div>
+      ${endBlock}
+    </div>`;
+
+  // Restore saved values
+  if (_NO.info.nome) document.getElementById("no-nome").value = _NO.info.nome;
+  if (isD && _NO.info.endereco)
+    document.getElementById("no-endereco").value = _NO.info.endereco;
+  if (isD && _NO.info.bairroV) {
+    document.getElementById("no-bairro").value = _NO.info.bairroV;
+    _noOnBairro();
+  }
+
+  document.getElementById("no-footer").innerHTML = `
+    <div class="no-footer-row">
+      <button class="btn-order" style="background:#333" onclick="_noBack()">← Voltar</button>
+      <button class="btn-order btn-accept" onclick="_noToCart()" style="flex:2">🛒 Montar Pedido →</button>
+    </div>`;
+}
+
+window._noOnBairro = function () {
+  const sel = document.getElementById("no-bairro");
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const fee = parseFloat(opt?.dataset.fee) || 0;
+  _NO.info.taxaEntrega = fee;
+  _NO.info.bairroV = sel.value;
+  _NO.info.bairroT = (opt?.text || "").replace(/\s*\(.*\)/, "").trim();
+  const tag = document.getElementById("no-taxa-tag");
+  if (tag) tag.textContent = fee > 0 ? `🛵 Taxa: ${_fmt(fee)}` : "";
+};
+
+window._noOnPag = function () {
+  const sel = document.getElementById("no-pag");
+  if (!sel) return;
+  const f = document.getElementById("no-troco-field");
+  if (f) f.style.display = sel.value === "Dinheiro" ? "block" : "none";
+};
+
+window._noBack = function () {
+  if (_NO.step === "pagto") _NO.step = "cart";
+  else if (_NO.step === "cart") _NO.step = "info";
+  else _NO.step = "tipo";
+  _noRender();
+};
+
+window._noToCart = function () {
+  const nome = (document.getElementById("no-nome")?.value || "").trim();
+  if (!nome) {
+    showToast("⚠️ Informe o nome do cliente", "warning");
+    return;
+  }
+
+  _NO.info.nome = nome;
+  if (_NO.tipo === "delivery") {
+    _NO.info.endereco = (
+      document.getElementById("no-endereco")?.value || ""
+    ).trim();
+    _noOnBairro();
+  }
+
+  _NO.step = "cart";
+  _noRender();
+};
+
+// ── STEP 3 — Cart + Catálogo ──────────────────────────────────────
+function _noRenderCart() {
+  document.getElementById("no-title").textContent =
+    `🛒 Pedido — ${_NO.info.nome}`;
+
+  const taxa = _NO.info.taxaEntrega || 0;
+  const sub = _NO.cart.reduce((s, e) => s + (e.finalPrice || 0), 0);
+  const total = sub + taxa;
+
+  // Cart list
+  let cartHtml = "";
+  if (_NO.cart.length === 0) {
+    cartHtml = `<div class="no-cart-empty">Carrinho vazio — adicione itens abaixo</div>`;
+  } else {
+    cartHtml = _NO.cart
+      .map((entry, i) => {
+        const details = [];
+        if (entry.isCombo && entry.burgers) {
+          entry.burgers.forEach((b) => {
+            let s = b.nome;
+            if (b.meatPoint) s += ` · ${b.meatPoint}`;
+            if (b.removed?.length) s += ` · Sem: ${b.removed.join(", ")}`;
+            if (b.added?.length)
+              s += ` · Add: ${b.added.map((a) => a.nome).join(", ")}`;
+            details.push(s);
+          });
+          if (entry.selectedBatata)
+            details.push(`🍟 Batata: ${entry.selectedBatata}`);
+          if (entry.selectedBebida)
+            details.push(`🥤 Bebida: ${entry.selectedBebida}`);
+        } else {
+          if (entry.selectedSize) details.push(entry.selectedSize);
+          if (entry.meatPoint) details.push(`Ponto: ${entry.meatPoint}`);
+          if (entry.removed?.length)
+            details.push(`Sem: ${entry.removed.join(", ")}`);
+          if (entry.added?.length)
+            details.push(`Add: ${entry.added.map((a) => a.nome).join(", ")}`);
+          if (entry.obs) details.push(entry.obs);
+        }
+        return `
+        <div class="no-cart-row">
+          <div class="no-cart-info">
+            <span class="no-cart-name">${entry.nome}</span>
+            ${details.map((d) => `<span class="no-cart-detail">${d}</span>`).join("")}
+          </div>
+          <div class="no-cart-right">
+            <span class="no-cart-price">${_fmt(entry.finalPrice)}</span>
+            <button class="no-cart-del" onclick="_noRemove(${i})" title="Remover">✕</button>
+          </div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  const taxaRow =
+    taxa > 0
+      ? `<div class="no-cart-taxa">Taxa de entrega: ${_fmt(taxa)}</div>`
+      : "";
+
+  // Catalogue
+  let catHtml = "";
+  Object.entries(State.menuData).forEach(([cat, items]) => {
+    catHtml += `<div class="ai-category">
+      <div class="ai-category-title">${_aiCategoryIcon(cat)} ${cat}</div>
+      <div class="ai-items-grid">`;
+    items.forEach((item, idx) => {
+      const key = `${cat}:${item.nome}`;
+      const avail = State.menuAvailability[key] !== false;
+      if (item.opcoes?.length) {
+        item.opcoes.forEach((op, oi) => {
+          const price = item.precoBase?.[oi] || 0;
+          const optKey = `${cat}:${item.nome}:${op}`;
+          const ok = avail && State.menuAvailability[optKey] !== false;
+          catHtml += `<button class="ai-item-btn${ok ? "" : " ai-unavailable"}"
+            ${ok ? `onclick="_noAddFromCatalog('${cat}',${idx},'${op}',${price})"` : "disabled"}>
+            <span class="ai-item-name">${item.nome}</span>
+            <span class="ai-item-sub">${op}</span>
+            <span class="ai-item-price">${ok ? _aiFormatPrice(price) : "Indisponível"}</span>
+          </button>`;
+        });
+      } else {
+        const price = Array.isArray(item.precoBase)
+          ? item.precoBase[0]
+          : item.precoBase || 0;
+        catHtml += `<button class="ai-item-btn${avail ? "" : " ai-unavailable"}"
+          ${avail ? `onclick="_noAddFromCatalog('${cat}',${idx},null,${price})"` : "disabled"}>
+          <span class="ai-item-name">${item.nome}</span>
+          <span class="ai-item-price">${avail ? _aiFormatPrice(price) : "Indisponível"}</span>
+        </button>`;
+      }
+    });
+    catHtml += `</div></div>`;
+  });
+
+  document.getElementById("no-body").innerHTML = `
+    <div class="no-cart-box">
+      <div class="no-section-title">🛒 Carrinho</div>
+      <div class="no-cart-list">${cartHtml}</div>
+      ${taxaRow}
+      <div class="no-cart-total">TOTAL: ${_fmt(total)}</div>
+    </div>
+    <div class="no-catalog-box">
+      <div class="no-section-title">➕ Adicionar Itens</div>
+      ${catHtml}
+    </div>`;
+
+  document.getElementById("no-footer").innerHTML = `
+    <div class="no-footer-row">
+      <button class="btn-order" style="background:#333" onclick="_noBack()">← Dados</button>
+      <button class="btn-order btn-accept" onclick="_noGoToPagto()"
+        style="flex:2" ${_NO.cart.length === 0 ? "disabled" : ""}>
+        💳 Pagamento → (${_fmt(total)})
+      </button>
+    </div>`;
+}
+
+window._noRemove = function (i) {
+  _NO.cart.splice(i, 1);
+  _noRenderCart();
+};
+
+window._noGoToPagto = function () {
+  if (_NO.cart.length === 0) {
+    showToast("⚠️ Carrinho vazio", "warning");
+    return;
+  }
+  _NO.step = "pagto";
+  _noRender();
+};
+
+// ── STEP 4 — Pagamento ────────────────────────────────────────────
+function _noRenderPagto() {
+  const isD = _NO.tipo === "delivery";
+  const taxa = _NO.info.taxaEntrega || 0;
+  const sub = _NO.cart.reduce((s, e) => s + (e.finalPrice || 0), 0);
+  const total = sub + taxa;
+
+  document.getElementById("no-title").textContent = "💳 Finalizar Pedido";
+
+  const modoOpts = isD
+    ? `<option value="🛵 ENTREGA">🛵 Entrega</option>
+       <option value="🏪 RETIRADA">🏪 Retirada no Local</option>`
+    : `<option value="🍽️ MESA">🍽️ Mesa</option>
+       <option value="🥡 VIAGEM">🥡 Viagem</option>`;
+
+  // Resumo do carrinho
+  const resumo = _NO.cart
+    .map(
+      (e) =>
+        `<div class="no-resumo-row">
+      <span>${e.nome}${e.selectedSize ? " (" + e.selectedSize + ")" : ""}</span>
+      <span>${_fmt(e.finalPrice)}</span>
+    </div>`,
+    )
+    .join("");
+
+  const taxaRow =
+    taxa > 0
+      ? `<div class="no-resumo-row no-resumo-taxa"><span>Taxa de entrega</span><span>${_fmt(taxa)}</span></div>`
+      : "";
+
+  document.getElementById("no-body").innerHTML = `
+    <div class="no-resumo-box">
+      <div class="no-section-title">📋 Resumo</div>
+      ${resumo}
+      ${taxaRow}
+      <div class="no-resumo-total">TOTAL: ${_fmt(total)}</div>
+    </div>
+    <div class="no-form" style="margin-top:16px">
+      <div class="no-field">
+        <label class="no-label">Modo de Consumo</label>
+        <select class="no-input" id="no-modo">${modoOpts}</select>
+      </div>
+      <div class="no-field">
+        <label class="no-label">Pagamento</label>
+        <select class="no-input" id="no-pag" onchange="_noOnPag()">
+          <option value="Dinheiro">💵 Dinheiro</option>
+          <option value="PIX">💠 PIX</option>
+          <option value="Débito">💳 Débito</option>
+          <option value="Crédito">💳 Crédito</option>
+        </select>
+      </div>
+      <div class="no-field" id="no-troco-field" style="display:none">
+        <label class="no-label">Troco para (R$)</label>
+        <input class="no-input" id="no-troco" type="number" min="0" step="0.5" placeholder="Ex: 50.00">
+      </div>
+    </div>`;
+
+  // Restore saved values
+  if (_NO.info.modo) document.getElementById("no-modo").value = _NO.info.modo;
+  if (_NO.info.pag) document.getElementById("no-pag").value = _NO.info.pag;
+  if (_NO.info.troco)
+    document.getElementById("no-troco").value = _NO.info.troco;
+  _noOnPag();
+
+  document.getElementById("no-footer").innerHTML = `
+    <div class="no-footer-row">
+      <button class="btn-order" style="background:#333" onclick="_noBack()">← Carrinho</button>
+      <button class="btn-order btn-ready" onclick="_noFinalize()" style="flex:2">
+        ✅ Criar Pedido — ${_fmt(total)}
+      </button>
+    </div>`;
+}
+
+// Called when user clicks an item in the catalogue panel
+window._noAddFromCatalog = function (cat, idx, size, price) {
+  // Set the special orderId so _aiAddItemToOrder redirects to us
+  State.addItem.orderId = "__new_order__";
+  // Open the existing add-item modal (it handles all customization steps)
+  const addModal = document.getElementById("kds-add-item-modal");
+  addModal.classList.add("show");
+  // Don't show/hide overlay here – it's already shown by the new-order modal
+  _aiSelectItem(cat, idx, size, price);
+};
+
+// Called by patched _aiAddItemToOrder when orderId === "__new_order__"
+function _newOrderReceiveItem(newItem) {
+  _NO.cart.push(newItem);
+  // Close the add-item overlay (already patched to skip overlay removal)
+  document.getElementById("kds-add-item-modal").classList.remove("show");
+  // Reset orderId only after we've captured the item
+  State.addItem.orderId = "__new_order__"; // keep it so next add still works
+  showToast(`✅ ${newItem.nome} adicionado ao carrinho!`, "success");
+  _noRenderCart();
+}
+
+// ── Finalizar pedido ──────────────────────────────────────────────
+window._noFinalize = async function () {
+  if (_NO.cart.length === 0) {
+    showToast("⚠️ Carrinho vazio", "warning");
+    return;
+  }
+  if (!State.database) {
+    showToast("⚠️ Sem conexão", "error");
+    return;
+  }
+
+  // Capture pagto step values
+  _NO.info.modo =
+    document.getElementById("no-modo")?.value || _NO.info.modo || "";
+  _NO.info.pag =
+    document.getElementById("no-pag")?.value || _NO.info.pag || "Dinheiro";
+  _NO.info.troco =
+    document.getElementById("no-troco")?.value || _NO.info.troco || "";
+
+  // Build itens array in the same format app.js uses
+  const itens = _NO.cart.map((entry) => {
+    const obs = [];
+    if (entry.isCombo && entry.burgers) {
+      entry.burgers.forEach((b) => {
+        obs.push(`---${b.nome}---`);
+        if (b.meatPoint) obs.push(`Ponto: ${b.meatPoint}`);
+        if (b.selectedCaldas?.length)
+          obs.push(`Caldas: ${b.selectedCaldas.join(", ")}`);
+        if (b.removed?.length) obs.push(`Sem: ${b.removed.join(", ")}`);
+        if (b.added?.length)
+          obs.push(`Adicionais: ${b.added.map((a) => a.nome).join(", ")}`);
+        if (b.obs) obs.push(b.obs);
+      });
+      if (entry.selectedBatata) obs.push(`Batata: ${entry.selectedBatata}`);
+      if (entry.selectedBebida) obs.push(`Bebida: ${entry.selectedBebida}`);
+    } else {
+      if (entry.selectedSize) obs.push(`Tamanho: ${entry.selectedSize}`);
+      if (entry.meatPoint) obs.push(`Ponto: ${entry.meatPoint}`);
+      if (entry.selectedCaldas?.length)
+        obs.push(`Caldas: ${entry.selectedCaldas.join(", ")}`);
+      if (entry.removed?.length) obs.push(`Sem: ${entry.removed.join(", ")}`);
+      if (entry.added?.length)
+        obs.push(`Adicionais: ${entry.added.map((a) => a.nome).join(", ")}`);
+      if (entry.obs) obs.push(entry.obs);
+    }
+
+    const item = {
+      nome: entry.nome,
+      preco: entry.selectedPrice || 0,
+      quantidade: 1,
+      qtd: 1,
+      observacao: obs.join(" | "),
+      _kdsCreated: true,
+    };
+    if (entry.finalPrice) item._precoOriginal = entry.finalPrice;
+    if (entry.meatPoint) item.ponto = entry.meatPoint;
+    if (entry.removed?.length) item.retiradas = entry.removed;
+    if (entry.added?.length)
+      item.adicionais = entry.added.map((a) => ({
+        nome: a.nome,
+        preco: a.preco,
+      }));
+    return item;
+  });
+
+  const taxa = _NO.info.taxaEntrega || 0;
+  const total = _NO.cart.reduce((s, e) => s + (e.finalPrice || 0), 0) + taxa;
+  const isD = _NO.tipo === "delivery";
+
+  const pedido = {
+    tipo: isD ? "delivery" : "mesa",
+    tipoOrigem: isD ? "delivery" : "mesa",
+    status: "pending",
+    nomeCliente: _NO.info.nome,
+    cliente: _NO.info.nome,
+    nome: _NO.info.nome,
+    modoConsumo: _NO.info.modo,
+    pagamento: _NO.info.pag,
+    itens,
+    total,
+    timestamp: Date.now(),
+    dataHora: new Date().toLocaleString("pt-BR"),
+    _kdsCreated: true,
+  };
+
+  if (isD) {
+    if (_NO.info.endereco) pedido.endereco = _NO.info.endereco;
+    if (_NO.info.bairroT) pedido.bairro = _NO.info.bairroT;
+    if (taxa > 0) pedido.taxaEntrega = taxa;
+  }
+
+  if (_NO.info.troco) {
+    pedido.troco = `Troco para R$ ${_NO.info.troco}`;
+  }
+
+  try {
+    const ref = State.database.ref("pedidos").push();
+    await ref.set(pedido);
+    showToast(`✅ Pedido criado para ${_NO.info.nome}!`, "success");
+    newOrderClose();
+  } catch (e) {
+    console.error("Erro ao criar pedido:", e);
+    showToast("Erro ao criar pedido", "error");
+  }
+};

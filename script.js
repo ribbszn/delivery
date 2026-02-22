@@ -958,7 +958,10 @@ function renderComboBurgerModal() {
   if (currentBurgerIndex < item.burgers.length - 1) {
     nextButton.textContent = "Próximo Lanche";
   } else {
-    if (item.adicionais && item.adicionais.length > 0) {
+    const availableAdicionais = (item.adicionais || []).filter(
+      (add) => !isPaidExtraUnavailable(add.nome),
+    );
+    if (availableAdicionais.length > 0) {
       nextButton.textContent = "Próxima Etapa (Adicionais)";
     } else {
       nextButton.textContent = "Finalizar Personalização";
@@ -1014,7 +1017,9 @@ function renderComboFinalAddsModal() {
   const questionDiv = document.getElementById("popupQuestion");
   questionDiv.innerHTML = "";
 
-  const adds = item.adicionais || [];
+  const adds = (item.adicionais || []).filter(
+    (add) => !isPaidExtraUnavailable(add.nome),
+  );
   if (adds.length > 0) {
     const addSection = document.createElement("div");
     addSection.innerHTML = "<h4>Adicionais (Opcional/Geral):</h4>";
@@ -1103,7 +1108,10 @@ function confirmPopupCustom() {
       return;
     }
 
-    if (item.adicionais && item.adicionais.length > 0) {
+    const availableAdicionais = (item.adicionais || []).filter(
+      (add) => !isPaidExtraUnavailable(add.nome),
+    );
+    if (availableAdicionais.length > 0) {
       renderComboFinalAddsModal();
       return;
     }

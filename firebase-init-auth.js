@@ -49,6 +49,7 @@ auth
 // ================================================================
 
 let isAuthenticated = false;
+let kdsInitialized = false; // FIX: guard para evitar listeners duplicados
 
 const loginScreen = document.getElementById("login-screen");
 const mainHeader = document.querySelector(".kds-header");
@@ -73,11 +74,15 @@ auth.onAuthStateChanged((user) => {
     if (mainContent) mainContent.style.display = "grid"; // FIX: era "flex", quebrava o layout de 2 colunas
     if (mainSidebar) mainSidebar.style.display = "flex";
 
-    if (typeof window.initKDS === "function") {
+    // FIX: guard evita que listeners do Firebase sejam registrados múltiplas
+    // vezes caso onAuthStateChanged dispare mais de uma vez (reconexão, token refresh).
+    if (!kdsInitialized && typeof window.initKDS === "function") {
+      kdsInitialized = true;
       window.initKDS();
     }
   } else {
     isAuthenticated = false;
+    kdsInitialized = false; // reset no logout para permitir novo login
 
     if (loginScreen) loginScreen.style.display = "flex";
     if (mainHeader) mainHeader.style.display = "none";

@@ -310,13 +310,11 @@ const MenuService = {
 
       let pricesUpdated = false;
 
-      // Atualizar preços do cardápio local com os preços do Firebase
       Object.entries(firebaseMenu).forEach(([category, items]) => {
         if (AppState.cardapioData[category]) {
           items.forEach((firebaseItem, index) => {
             const localItem = AppState.cardapioData[category][index];
             if (localItem && firebaseItem.precoBase !== undefined) {
-              // Verificar se o preço realmente mudou
               const oldPrice = JSON.stringify(localItem.precoBase);
               const newPrice = JSON.stringify(firebaseItem.precoBase);
 
@@ -332,7 +330,6 @@ const MenuService = {
         }
       });
 
-      // Re-renderizar o menu com os novos preços apenas se houve mudança
       if (pricesUpdated && AppState.cardapioData) {
         MenuUI.render(AppState.cardapioData);
         showToast("💰 Preços atualizados!");
@@ -349,7 +346,6 @@ const MenuService = {
 
       if (!firebaseMenu || !AppState.cardapioData) return;
 
-      // Atualizar preços do cardápio local
       Object.entries(firebaseMenu).forEach(([category, items]) => {
         if (AppState.cardapioData[category]) {
           items.forEach((firebaseItem, index) => {

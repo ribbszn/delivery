@@ -62,6 +62,20 @@ async function initFirebase() {
     }
 
     database = firebase.database();
+
+    // FIX: As regras do Firebase exigem auth != null para criar pedidos.
+    // Usamos autenticação anônima no app de delivery/cliente.
+    const auth = firebase.auth();
+    if (!auth.currentUser) {
+      try {
+        await auth.signInAnonymously();
+        console.log("✅ Autenticação anônima realizada");
+      } catch (authError) {
+        console.warn("⚠️ Autenticação anônima falhou:", authError.message);
+        // Continua mesmo assim — pedidos via WhatsApp ainda funcionam.
+      }
+    }
+
     console.log("✅ Firebase inicializado");
   } catch (error) {
     console.error("❌ Erro ao inicializar Firebase:", error);
@@ -295,6 +309,38 @@ const MenuService = {
     database.ref("paidExtrasAvailability").on("value", (snapshot) => {
       AppState.paidExtrasAvailability = snapshot.val() || {};
       console.log("💰 Disponibilidade de adicionais pagos atualizada");
+
+      // Se o modal de personalização estiver aberto num step de extras,
+      // remove imediatamente adicionais bloqueados pelo KDS da tela do cliente.
+      const modal = DOM.elements.modal;
+      if (modal && modal.classList.contains("active")) {
+        const step = AppState.stepsData[AppState.currentStep];
+        if (step && step.type === "extras") {
+          // Limpa do tempItem.added qualquer adicional que ficou indisponível
+          // (pode ter sido selecionado antes do KDS bloquear)
+          if (AppState.tempItem.added && AppState.tempItem.added.length > 0) {
+            AppState.tempItem.added = AppState.tempItem.added.filter(
+              (a) => AppState.paidExtrasAvailability[a.nome] !== false,
+            );
+          }
+          // Re-renderiza o step com a lista filtrada de disponíveis
+          const availableNow = step.data.filter(
+            (e) => AppState.paidExtrasAvailability[e.nome] !== false,
+          );
+          OrderFlow.renderExtras(
+            DOM.elements.modalTitle,
+            DOM.elements.modalBody,
+            availableNow,
+            step.burgerName,
+          );
+        }
+      }
+
+      // Re-renderiza o menu para refletir a nova disponibilidade de adicionais
+      // (os steps são reconstruídos na próxima abertura do modal, filtrando corretamente)
+      if (AppState.cardapioData) {
+        MenuUI.render(AppState.cardapioData);
+      }
     });
   },
 
@@ -310,11 +356,13 @@ const MenuService = {
 
       let pricesUpdated = false;
 
+      // Atualizar preços do cardápio local com os preços do Firebase
       Object.entries(firebaseMenu).forEach(([category, items]) => {
         if (AppState.cardapioData[category]) {
           items.forEach((firebaseItem, index) => {
             const localItem = AppState.cardapioData[category][index];
             if (localItem && firebaseItem.precoBase !== undefined) {
+              // Verificar se o preço realmente mudou
               const oldPrice = JSON.stringify(localItem.precoBase);
               const newPrice = JSON.stringify(firebaseItem.precoBase);
 
@@ -330,6 +378,7 @@ const MenuService = {
         }
       });
 
+      // Re-renderizar o menu com os novos preços apenas se houve mudança
       if (pricesUpdated && AppState.cardapioData) {
         MenuUI.render(AppState.cardapioData);
         showToast("💰 Preços atualizados!");
@@ -346,6 +395,7 @@ const MenuService = {
 
       if (!firebaseMenu || !AppState.cardapioData) return;
 
+      // Atualizar preços do cardápio local
       Object.entries(firebaseMenu).forEach(([category, items]) => {
         if (AppState.cardapioData[category]) {
           items.forEach((firebaseItem, index) => {
@@ -1680,17 +1730,19 @@ const CheckoutManager = {
     }
 
     // Verificar se a loja está aberta antes de enviar
-    try {
-      const storeOpenSnapshot = await database.ref("storeOpen").once("value");
-      const isStoreOpen = storeOpenSnapshot.val() !== false; // Default true
+    if (database) {
+      try {
+        const storeOpenSnapshot = await database.ref("storeOpen").once("value");
+        const isStoreOpen = storeOpenSnapshot.val() !== false; // Default true
 
-      if (!isStoreOpen) {
-        showToast("🔴 Desculpe, a loja está fechada no momento!");
-        return;
+        if (!isStoreOpen) {
+          showToast("🔴 Desculpe, a loja está fechada no momento!");
+          return;
+        }
+      } catch (error) {
+        console.warn("Erro ao verificar status da loja, prosseguindo:", error);
+        // Em caso de erro, permite o pedido (fail-safe)
       }
-    } catch (error) {
-      console.warn("Erro ao verificar status da loja, prosseguindo:", error);
-      // Em caso de erro, permite o pedido (fail-safe)
     }
 
     if (AppState.deliveryType === "delivery") {

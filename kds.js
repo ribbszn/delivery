@@ -848,53 +848,10 @@ function formatPayment(pagamento) {
 }
 
 // ================================
-// ACCEPT ORDER
+// ACCEPT / COMPLETE / CANCEL ORDER
+// FIX: implementações movidas para _implAcceptOrder / _implCompleteOrder / _implCancelOrder
+// e expostas como window.acceptOrder etc. com atualização automática do widget.
 // ================================
-async function acceptOrder(orderId) {
-  if (!State.database) return;
-
-  try {
-    // FIX: persiste o status no Firebase para sobreviver a recarregamentos
-    await State.database.ref(`pedidos/${orderId}`).update({
-      status: "preparing",
-      acceptedAt: Date.now(),
-      acceptedTime: new Date().toLocaleString("pt-BR"),
-    });
-
-    State.acceptedOrders[orderId] = true;
-    stopBeep(orderId);
-
-    const order = State.orders[orderId];
-    if (order) {
-      renderOrder(orderId, order, false);
-    }
-
-    showToast("✅ Pedido aceito e em preparo", "success");
-  } catch (error) {
-    console.error("Erro ao aceitar pedido:", error);
-    showToast("Erro ao aceitar pedido", "error");
-  }
-}
-
-// ================================
-// COMPLETE ORDER
-// ================================
-async function completeOrder(orderId) {
-  if (!State.database) return;
-
-  try {
-    await State.database.ref(`pedidos/${orderId}`).update({
-      status: "completed",
-      completedAt: Date.now(),
-      completedTime: new Date().toLocaleString("pt-BR"),
-    });
-
-    showToast("✅ Pedido concluído", "success");
-  } catch (error) {
-    console.error("Erro ao finalizar pedido:", error);
-    showToast("Erro ao finalizar pedido", "error");
-  }
-}
 
 // ================================
 // PRINT KITCHEN - PADRÃO DELIVERY
@@ -1277,29 +1234,6 @@ function stopBeep(orderId) {
 }
 
 // ================================
-// CANCEL ORDER
-// ================================
-async function cancelOrder(orderId) {
-  if (!State.database) return;
-
-  if (!confirm("Tem certeza que deseja cancelar este pedido?")) {
-    return;
-  }
-
-  try {
-    await State.database.ref(`pedidos/${orderId}`).update({
-      status: "cancelled",
-      cancelledAt: Date.now(),
-      cancelledTime: new Date().toLocaleString("pt-BR"),
-    });
-
-    showToast("❌ Pedido cancelado", "warning");
-  } catch (error) {
-    console.error("Erro ao cancelar pedido:", error);
-    showToast("Erro ao cancelar pedido", "error");
-  }
-}
-
 // ================================
 // REMOVE ORDER FROM KDS
 // ================================
@@ -1762,32 +1696,73 @@ function renderInProgressOrder(order) {
 }
 
 // Sobrescrever funções originais para atualizar widget
-(function () {
-  const _acceptOrder = window.acceptOrder;
-  const _completeOrder = window.completeOrder;
-  const _cancelOrder = window.cancelOrder;
+// FIX: As implementações reais são definidas como _impl* para o wrapper poder
+// referenciá-las sem problema de ordem de execução no arquivo.
+async function _implAcceptOrder(orderId) {
+  if (!State.database) return;
+  try {
+    await State.database.ref(`pedidos/${orderId}`).update({
+      status: "preparing",
+      acceptedAt: Date.now(),
+      acceptedTime: new Date().toLocaleString("pt-BR"),
+    });
+    State.acceptedOrders[orderId] = true;
+    stopBeep(orderId);
+    const order = State.orders[orderId];
+    if (order) renderOrder(orderId, order, false);
+    showToast("✅ Pedido aceito e em preparo", "success");
+  } catch (error) {
+    console.error("Erro ao aceitar pedido:", error);
+    showToast("Erro ao aceitar pedido", "error");
+  }
+}
 
-  window.acceptOrder = async function (orderId) {
-    await _acceptOrder.call(this, orderId);
-    setTimeout(() => {
-      updateInProgressWidget();
-    }, 200);
-  };
+async function _implCompleteOrder(orderId) {
+  if (!State.database) return;
+  try {
+    await State.database.ref(`pedidos/${orderId}`).update({
+      status: "completed",
+      completedAt: Date.now(),
+      completedTime: new Date().toLocaleString("pt-BR"),
+    });
+    showToast("✅ Pedido concluído", "success");
+  } catch (error) {
+    console.error("Erro ao finalizar pedido:", error);
+    showToast("Erro ao finalizar pedido", "error");
+  }
+}
 
-  window.completeOrder = async function (orderId) {
-    await _completeOrder.call(this, orderId);
-    setTimeout(() => {
-      updateInProgressWidget();
-    }, 200);
-  };
+async function _implCancelOrder(orderId) {
+  if (!State.database) return;
+  if (!confirm("Tem certeza que deseja cancelar este pedido?")) return;
+  try {
+    await State.database.ref(`pedidos/${orderId}`).update({
+      status: "cancelled",
+      cancelledAt: Date.now(),
+      cancelledTime: new Date().toLocaleString("pt-BR"),
+    });
+    showToast("❌ Pedido cancelado", "warning");
+  } catch (error) {
+    console.error("Erro ao cancelar pedido:", error);
+    showToast("Erro ao cancelar pedido", "error");
+  }
+}
 
-  window.cancelOrder = async function (orderId) {
-    await _cancelOrder.call(this, orderId);
-    setTimeout(() => {
-      updateInProgressWidget();
-    }, 200);
-  };
-})();
+// Wrappers públicos que também atualizam o widget de "Em Preparo"
+window.acceptOrder = async function (orderId) {
+  await _implAcceptOrder(orderId);
+  setTimeout(updateInProgressWidget, 200);
+};
+
+window.completeOrder = async function (orderId) {
+  await _implCompleteOrder(orderId);
+  setTimeout(updateInProgressWidget, 200);
+};
+
+window.cancelOrder = async function (orderId) {
+  await _implCancelOrder(orderId);
+  setTimeout(updateInProgressWidget, 200);
+};
 
 // ================================
 // SOUND & NOTIFICATIONS
@@ -1962,8 +1937,7 @@ async function loadMenuData() {
   try {
     const response = await fetch(CONFIG.menuDataUrl);
     State.menuData = await response.json();
-    if (window.invalidateAdicionaisCache) window.invalidateAdicionaisCache();
-    invalidateAdicionaisCache();
+    invalidateAdicionaisCache(); // FIX: chamada única (window alias desnecessário)
     renderMenuCategories();
     // FIX: listeners são configurados após renderizar, usando delegação de eventos
     setupMenuListeners();
@@ -2276,8 +2250,7 @@ async function loadIngredientsData() {
     try {
       const response = await fetch(CONFIG.menuDataUrl);
       State.menuData = await response.json();
-      if (window.invalidateAdicionaisCache) window.invalidateAdicionaisCache();
-      invalidateAdicionaisCache();
+      invalidateAdicionaisCache(); // FIX: chamada única
     } catch (error) {
       console.error("Erro ao carregar cardápio para insumos:", error);
       showToast("Erro ao carregar dados do cardápio", "error");

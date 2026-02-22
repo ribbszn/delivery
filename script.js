@@ -33,6 +33,20 @@ if (!firebase.apps.length) {
 }
 const db = firebase.database();
 
+// FIX: As regras do Firebase exigem auth != null para criar pedidos.
+// Usamos autenticação anônima no totem.
+(async () => {
+  try {
+    const auth = firebase.auth();
+    if (!auth.currentUser) {
+      await auth.signInAnonymously();
+      console.log("✅ Autenticação anônima realizada (totem)");
+    }
+  } catch (e) {
+    console.warn("⚠️ Autenticação anônima falhou:", e.message);
+  }
+})();
+
 // NOVAS VARIÁVEIS PARA CUSTOMIZAÇÃO SEQUENCIAL DE COMBO
 let comboCustomization = {
   item: null, // O item completo do cardápio (ex: "3 Duplos")
@@ -194,6 +208,30 @@ function initAvailabilityListeners() {
   db.ref("paidExtrasAvailability").on("value", (snapshot) => {
     paidExtrasAvailability = snapshot.val() || {};
     console.log("💰 Disponibilidade de adicionais pagos atualizada no totem");
+
+    // Re-renderiza o popup de personalização se estiver aberto,
+    // para remover imediatamente adicionais bloqueados pelo KDS.
+    const popupCustomEl = document.getElementById("popupCustom");
+    if (popupCustomEl && popupCustomEl.classList.contains("show")) {
+      if (comboCustomization.currentBurgerIndex !== -1) {
+        // Está personalizando um burger do combo
+        renderComboBurgerModal();
+      } else if (currentItem) {
+        // Está personalizando item simples ou artesanal
+        openPopupCustom(
+          currentItem.cat,
+          currentItem.itemIndex,
+          currentItem.optionIndex,
+        );
+      }
+    }
+
+    // Re-renderiza o cardápio para refletir nova disponibilidade de adicionais
+    // (ex: se todos os adicionais de um item ficam OFF, o botão muda de comportamento)
+    if (currentCategory && cardapioData[currentCategory]) {
+      const activeBtn = document.querySelector(".sessao-topo button.active");
+      showCategory(currentCategory, activeBtn);
+    }
   });
 
   // ✅ Listener para disponibilidade de menu - CORRIGIDO para usar mesmo formato do KDS
@@ -409,10 +447,17 @@ function getIngredsForComboCompat(item, burgerName) {
 }
 
 function hasCustomization(item) {
+  // Verifica se o item tem adicionais pagos DISPONÍVEIS (filtra os bloqueados pelo KDS)
+  const hasAvailablePaidExtras =
+    ((item.paidExtras && item.paidExtras.length > 0) ||
+      (item.adicionais && item.adicionais.length > 0)) &&
+    (item.paidExtras || item.adicionais || []).some(
+      (e) => !isPaidExtraUnavailable(e.nome),
+    );
+
   return !!(
     item.combo ||
-    (item.adicionais && item.adicionais.length > 0) ||
-    item.paidExtras ||
+    hasAvailablePaidExtras ||
     item.ingredientesPorOpcao ||
     (item.ingredientesPadrao && item.ingredientesPadrao.length > 0) ||
     (item.ingredients && item.ingredients.length > 0) ||

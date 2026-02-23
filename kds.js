@@ -1748,8 +1748,98 @@ async function _implCancelOrder(orderId) {
   }
 }
 
+// ================================
+// CAMPO GRANDE — TAXA DE ENTREGA MODAL
+// ================================
+let _cgfmPendingOrderId = null;
+
+window.cgfmVoltar = function () {
+  const modal = document.getElementById("campo-grande-fee-modal");
+  const overlay = document.getElementById("overlay");
+  modal.style.display = "none";
+  overlay.classList.remove("active");
+  _cgfmPendingOrderId = null;
+};
+
+window.cgfmConfirmar = async function () {
+  const input = document.getElementById("cgfm-fee-input");
+  const rawValue = input.value.trim();
+
+  if (
+    rawValue === "" ||
+    isNaN(rawValue) ||
+    Number(rawValue) < 0 ||
+    !Number.isInteger(Number(rawValue))
+  ) {
+    input.style.border = "1px solid #ef4444";
+    input.focus();
+    showToast("⚠️ Digite um valor inteiro válido (pode ser 0)", "warning");
+    return;
+  }
+
+  input.style.border = "1px solid #444";
+  const taxa = parseInt(rawValue, 10);
+  const orderId = _cgfmPendingOrderId;
+
+  // Fecha o modal
+  const modal = document.getElementById("campo-grande-fee-modal");
+  const overlay = document.getElementById("overlay");
+  modal.style.display = "none";
+  overlay.classList.remove("active");
+  _cgfmPendingOrderId = null;
+
+  // Atualiza taxa e total no Firebase antes de aceitar
+  const order = State.orders[orderId];
+  if (order && State.database) {
+    const novoTotal = (order.total || 0) + taxa;
+    try {
+      await State.database.ref(`pedidos/${orderId}`).update({
+        taxaEntrega: taxa,
+        total: novoTotal,
+      });
+      // Atualiza estado local
+      State.orders[orderId].taxaEntrega = taxa;
+      State.orders[orderId].total = novoTotal;
+    } catch (e) {
+      console.error("Erro ao salvar taxa:", e);
+      showToast("Erro ao salvar taxa de entrega", "error");
+      return;
+    }
+  }
+
+  await _implAcceptOrder(orderId);
+  setTimeout(updateInProgressWidget, 200);
+};
+
 // Wrappers públicos que também atualizam o widget de "Em Preparo"
 window.acceptOrder = async function (orderId) {
+  const order = State.orders[orderId];
+  const bairro = (order && (order.bairro || "")).toLowerCase();
+  const isCampoGrande = bairro.includes("campo grande");
+  const jaTemTaxa = order && order.taxaEntrega != null;
+
+  if (isCampoGrande && !jaTemTaxa) {
+    // Abre modal para definir a taxa
+    _cgfmPendingOrderId = orderId;
+
+    const endereco = order.endereco || "Não informado";
+    const bairroText = order.bairro || "Campo Grande";
+
+    document.getElementById("cgfm-address").innerHTML =
+      `<strong>${bairroText}</strong><br>${endereco}`;
+    document.getElementById("cgfm-fee-input").value = "";
+    document.getElementById("cgfm-fee-input").style.border = "1px solid #444";
+
+    const modal = document.getElementById("campo-grande-fee-modal");
+    const overlay = document.getElementById("overlay");
+    modal.style.display = "flex";
+    overlay.classList.add("active");
+
+    // Foca no input após abrir
+    setTimeout(() => document.getElementById("cgfm-fee-input").focus(), 100);
+    return;
+  }
+
   await _implAcceptOrder(orderId);
   setTimeout(updateInProgressWidget, 200);
 };

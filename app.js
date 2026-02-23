@@ -1781,32 +1781,26 @@ const CheckoutManager = {
       data.address = `${data.street.trim()}, ${data.houseNumber.trim()}`;
     }
 
-    // Preparar URL do WhatsApp ANTES de qualquer await (evita popup blocker)
+    // ✅ Abre o WhatsApp IMEDIATAMENTE — antes de qualquer await.
+    // Browsers bloqueiam window.open() após await (contexto de clique perdido).
+    // O cliente já vê o WhatsApp abrir enquanto o pedido é enviado ao KDS em paralelo.
     const whatsappURL = OrderSender.buildWhatsAppURL(data);
+    window.open(whatsappURL, "_blank");
 
     showToast("📤 Enviando pedido para a cozinha...");
 
-    // 1) Tentar enviar ao KDS com retry + fila offline
-    //    O cliente só é liberado após confirmação do KDS.
-    const kdsOk = await OrderSender.sendToKDSRobust(data);
-
-    if (!kdsOk) {
-      // Falhou mesmo após retries e fila — avisar o cliente explicitamente
-      const confirmar = confirm(
-        "⚠️ Não conseguimos confirmar o recebimento do seu pedido pela cozinha.\n\n" +
-          "Seu pedido foi enviado pelo WhatsApp, mas entre em contato com a loja para garantir que foi recebido.\n\n" +
-          "Clique OK para abrir o WhatsApp mesmo assim.",
-      );
-      if (confirmar) {
-        window.open(whatsappURL, "_blank");
+    // Envia ao KDS em background — não bloqueia mais o cliente
+    OrderSender.sendToKDSRobust(data).then((kdsOk) => {
+      if (!kdsOk) {
+        showToast(
+          "⚠️ Pedido no WhatsApp, mas cozinha não confirmou. Ligue para a loja!",
+        );
+      } else {
+        showToast("✅ Pedido enviado com sucesso!");
       }
-      return; // Não limpa o carrinho — cliente pode tentar de novo
-    }
+    });
 
-    // 2) KDS confirmou — agora abrir WhatsApp (ainda no mesmo fluxo de clique via await síncrono)
-    window.open(whatsappURL, "_blank");
-
-    showToast("✅ Pedido enviado com sucesso!");
+    // Limpa carrinho e fecha checkout imediatamente
     setTimeout(() => {
       CartManager.clear();
       this.closeCheckout();

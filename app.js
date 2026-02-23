@@ -63,6 +63,14 @@ async function initFirebase() {
 
     database = firebase.database();
 
+    // Reenviar fila offline automaticamente quando a conexão voltar
+    database.ref(".info/connected").on("value", (snap) => {
+      if (snap.val() === true) {
+        console.log("🌐 Firebase reconectado — verificando fila offline...");
+        setTimeout(() => OrderSender._flushOfflineQueue(), 1000);
+      }
+    });
+
     // FIX: As regras do Firebase exigem auth != null para criar pedidos.
     // Usamos autenticação anônima no app de delivery/cliente.
     const auth = firebase.auth();
@@ -1773,30 +1781,37 @@ const CheckoutManager = {
       data.address = `${data.street.trim()}, ${data.houseNumber.trim()}`;
     }
 
-    // ✅ CORREÇÃO: Enviar pedidos e DEPOIS limpar/fechar
-    try {
-      // Mostrar loading
-      showToast("📤 Enviando pedido...");
+    // Preparar URL do WhatsApp ANTES de qualquer await (evita popup blocker)
+    const whatsappURL = OrderSender.buildWhatsAppURL(data);
 
-      // Enviar para WhatsApp
-      OrderSender.sendToWhatsApp(data);
+    showToast("📤 Enviando pedido para a cozinha...");
 
-      // Enviar para KDS
-      await OrderSender.sendToKDS(data);
+    // 1) Tentar enviar ao KDS com retry + fila offline
+    //    O cliente só é liberado após confirmação do KDS.
+    const kdsOk = await OrderSender.sendToKDSRobust(data);
 
-      // ✅ Sucesso - Limpar e fechar
-      showToast("✅ Pedido enviado com sucesso!");
-
-      // Aguardar um pouco para o usuário ver a mensagem
-      setTimeout(() => {
-        CartManager.clear();
-        this.closeCheckout();
-        SidebarUI.close();
-      }, 1500);
-    } catch (error) {
-      console.error("Erro ao enviar pedido:", error);
-      showToast("❌ Erro ao enviar pedido. Tente novamente.");
+    if (!kdsOk) {
+      // Falhou mesmo após retries e fila — avisar o cliente explicitamente
+      const confirmar = confirm(
+        "⚠️ Não conseguimos confirmar o recebimento do seu pedido pela cozinha.\n\n" +
+          "Seu pedido foi enviado pelo WhatsApp, mas entre em contato com a loja para garantir que foi recebido.\n\n" +
+          "Clique OK para abrir o WhatsApp mesmo assim.",
+      );
+      if (confirmar) {
+        window.open(whatsappURL, "_blank");
+      }
+      return; // Não limpa o carrinho — cliente pode tentar de novo
     }
+
+    // 2) KDS confirmou — agora abrir WhatsApp (ainda no mesmo fluxo de clique via await síncrono)
+    window.open(whatsappURL, "_blank");
+
+    showToast("✅ Pedido enviado com sucesso!");
+    setTimeout(() => {
+      CartManager.clear();
+      this.closeCheckout();
+      SidebarUI.close();
+    }, 1500);
   },
 
   closeCheckout() {
@@ -1833,7 +1848,19 @@ const CheckoutManager = {
 // ORDER SENDER
 // ================================
 const OrderSender = {
+  // Constrói apenas a URL — sem abrir janela (permite chamar antes de await)
+  buildWhatsAppURL(data) {
+    const message = this._buildMessage(data);
+    const encodedMessage = encodeURIComponent(message);
+    return `https://wa.me/${CONFIG.whatsappNumber}?text=${encodedMessage}`;
+  },
+
+  // Mantido por compatibilidade, mas não usado no fluxo principal
   sendToWhatsApp(data) {
+    window.open(this.buildWhatsAppURL(data), "_blank");
+  },
+
+  _buildMessage(data) {
     let message = `🔥 *PEDIDO RIBBS ZN* 🔥\n\n`;
     message += `━━━━━━━━━━━━━━━━━━\n`;
     message += `📦 *TIPO:* ${AppState.deliveryType === "delivery" ? "🛵 ENTREGA" : "🏪 RETIRADA"}\n`;
@@ -1910,10 +1937,7 @@ const OrderSender = {
 
     message += `\n💰 *TOTAL: ${Utils.formatPrice(CartManager.getTotal())}*`;
 
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappURL = `https://wa.me/${CONFIG.whatsappNumber}?text=${encodedMessage}`;
-
-    window.open(whatsappURL, "_blank");
+    return message;
   },
 
   getPaymentName(method) {
@@ -1926,134 +1950,226 @@ const OrderSender = {
     return names[method] || method;
   },
 
-  async sendToKDS(data) {
-    if (!database) {
-      console.warn("⚠️ Firebase não conectado");
-      return;
+  // Monta o objeto pedido pronto para o Firebase
+  _buildPedido(data) {
+    const paymentNames = {
+      pix: "PIX",
+      dinheiro: "Dinheiro",
+      debito: "Débito",
+      credito: "Crédito",
+    };
+
+    const itens = AppState.cart.map((item) => {
+      const itemFormatado = {
+        nome: item.nome,
+        preco: item.selectedPrice || 0,
+        quantidade: item.quantity || 1,
+        qtd: item.quantity || 1,
+      };
+
+      const observacoes = [];
+
+      if (item.isCombo && item.burgers) {
+        item.burgers.forEach((burger) => {
+          observacoes.push(`--- ${burger.nome} ---`);
+          if (burger.meatPoint) observacoes.push(`Ponto: ${burger.meatPoint}`);
+          if (burger.selectedCaldas && burger.selectedCaldas.length)
+            observacoes.push(`Caldas: ${burger.selectedCaldas.join(", ")}`);
+          if (burger.removed && burger.removed.length)
+            observacoes.push(`Sem: ${burger.removed.join(", ")}`);
+          if (burger.added && burger.added.length)
+            observacoes.push(
+              `Adicionais: ${burger.added.map((a) => a.nome).join(", ")}`,
+            );
+          if (burger.obs) observacoes.push(burger.obs);
+        });
+        if (item.selectedBatata)
+          observacoes.push(`Batata: ${item.selectedBatata}`);
+        if (item.selectedBebida)
+          observacoes.push(`Bebida: ${item.selectedBebida}`);
+      } else {
+        if (item.selectedSize)
+          observacoes.push(`Tamanho: ${item.selectedSize}`);
+        if (item.meatPoint) {
+          observacoes.push(`Ponto: ${item.meatPoint}`);
+          itemFormatado.ponto = item.meatPoint;
+        }
+        if (item.selectedCaldas && item.selectedCaldas.length)
+          observacoes.push(`Caldas: ${item.selectedCaldas.join(", ")}`);
+        if (item.removed && item.removed.length) {
+          observacoes.push(`Sem: ${item.removed.join(", ")}`);
+          itemFormatado.retiradas = item.removed;
+        }
+        if (item.added && item.added.length) {
+          observacoes.push(
+            `Adicionais: ${item.added.map((a) => a.nome).join(", ")}`,
+          );
+          itemFormatado.adicionais = item.added.map((a) => ({
+            nome: a.nome,
+            preco: a.preco,
+          }));
+        }
+        if (item.obs) observacoes.push(item.obs);
+      }
+
+      if (observacoes.length > 0) {
+        itemFormatado.observacao = observacoes.join(" | ");
+      }
+
+      return itemFormatado;
+    });
+
+    const pedido = {
+      tipo: "delivery",
+      tipoOrigem: "delivery",
+      status: "pending",
+      nomeCliente: data.customerName,
+      cliente: data.customerName,
+      nome: data.customerName,
+      pagamento: paymentNames[data.paymentMethod] || data.paymentMethod,
+      itens: itens,
+      total: CartManager.getTotal(),
+      timestamp: Date.now(),
+      dataHora: new Date().toLocaleString("pt-BR"),
+    };
+
+    if (AppState.deliveryType === "delivery") {
+      pedido.modoConsumo = "🛵 ENTREGA";
+      pedido.endereco = data.address || "";
+      if (data.complement && data.complement.trim() !== "") {
+        pedido.endereco += ` - ${data.complement.trim()}`;
+      }
+      if (data.neighborhoodInfo) pedido.bairro = data.neighborhoodInfo.text;
+      if (AppState.deliveryFee > 0) pedido.taxaEntrega = AppState.deliveryFee;
+    } else {
+      pedido.modoConsumo = "🏪 RETIRADA";
+      pedido.endereco = "RETIRADA NO LOCAL";
     }
 
+    if (data.paymentMethod === "dinheiro" && data.changeFor) {
+      pedido.troco = `Troco para R$ ${data.changeFor}`;
+    }
+
+    return pedido;
+  },
+
+  // Tenta enviar uma única vez ao Firebase
+  async sendToKDS(data) {
+    if (!database) throw new Error("Firebase não conectado");
+    const pedido = this._buildPedido(data);
+    const newOrderRef = database.ref("pedidos").push();
+    await newOrderRef.set(pedido);
+    console.log("✅ Pedido enviado ao KDS!");
+  },
+
+  // Envia com retry automático (3x) + fila offline se tudo falhar
+  // Retorna true se conseguiu enviar, false se foi para a fila offline
+  async sendToKDSRobust(data) {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 2000;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await this.sendToKDS(data);
+        // Sucesso — tentar reenviar fila pendente (pedidos anteriores que falharam)
+        this._flushOfflineQueue();
+        return true;
+      } catch (error) {
+        console.warn(
+          `⚠️ Tentativa ${attempt}/${MAX_RETRIES} falhou:`,
+          error.message,
+        );
+        if (attempt < MAX_RETRIES) {
+          showToast(`⏳ Tentando novamente... (${attempt}/${MAX_RETRIES})`);
+          await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
+        }
+      }
+    }
+
+    // Todas as tentativas falharam — salvar na fila offline
+    console.error("❌ Todas as tentativas falharam. Salvando na fila offline.");
+    this._saveToOfflineQueue(data);
+    return false;
+  },
+
+  // Salva pedido no localStorage para reenvio posterior
+  _saveToOfflineQueue(data) {
     try {
-      const paymentNames = {
-        pix: "PIX",
-        dinheiro: "Dinheiro",
-        debito: "Débito",
-        credito: "Crédito",
-      };
-
-      const itens = AppState.cart.map((item) => {
-        const itemFormatado = {
-          nome: item.nome,
-          preco: item.selectedPrice || 0,
-          quantidade: item.quantity || 1,
-          qtd: item.quantity || 1,
-        };
-
-        const observacoes = [];
-
-        if (item.isCombo && item.burgers) {
-          item.burgers.forEach((burger) => {
-            observacoes.push(`--- ${burger.nome} ---`);
-            if (burger.meatPoint)
-              observacoes.push(`Ponto: ${burger.meatPoint}`);
-            if (burger.selectedCaldas && burger.selectedCaldas.length)
-              observacoes.push(`Caldas: ${burger.selectedCaldas.join(", ")}`);
-            if (burger.removed && burger.removed.length) {
-              observacoes.push(`Sem: ${burger.removed.join(", ")}`);
-            }
-            if (burger.added && burger.added.length) {
-              observacoes.push(
-                `Adicionais: ${burger.added.map((a) => a.nome).join(", ")}`,
-              );
-            }
-            if (burger.obs) observacoes.push(burger.obs);
-          });
-          if (item.selectedBatata) {
-            observacoes.push(`Batata: ${item.selectedBatata}`);
-          }
-          if (item.selectedBebida) {
-            observacoes.push(`Bebida: ${item.selectedBebida}`);
-          }
-        } else {
-          if (item.selectedSize)
-            observacoes.push(`Tamanho: ${item.selectedSize}`);
-          if (item.meatPoint) {
-            observacoes.push(`Ponto: ${item.meatPoint}`);
-            // ✅ FIX: campo direto — o KDS lê "ponto" separado quando o parser
-            // de obs falha (o join por " | " não cria \n, então tudo vira 1 linha)
-            itemFormatado.ponto = item.meatPoint;
-          }
-          if (item.selectedCaldas && item.selectedCaldas.length)
-            observacoes.push(`Caldas: ${item.selectedCaldas.join(", ")}`);
-          if (item.removed && item.removed.length) {
-            observacoes.push(`Sem: ${item.removed.join(", ")}`);
-            // ✅ FIX: campo direto — o KDS lê "retiradas" separado pelo mesmo motivo
-            itemFormatado.retiradas = item.removed;
-          }
-          if (item.added && item.added.length) {
-            const adicionaisNomes = item.added.map((a) => a.nome).join(", ");
-            observacoes.push(`Adicionais: ${adicionaisNomes}`);
-            itemFormatado.adicionais = item.added.map((a) => ({
-              nome: a.nome,
-              preco: a.preco,
-            }));
-          }
-          if (item.obs) observacoes.push(item.obs);
-        }
-
-        if (observacoes.length > 0) {
-          itemFormatado.observacao = observacoes.join(" | ");
-        }
-
-        return itemFormatado;
+      const queue = JSON.parse(
+        localStorage.getItem("kds_offline_queue") || "[]",
+      );
+      queue.push({
+        data: data,
+        cart: JSON.parse(JSON.stringify(AppState.cart)), // snapshot do carrinho
+        deliveryType: AppState.deliveryType,
+        deliveryFee: AppState.deliveryFee,
+        selectedNeighborhood: AppState.selectedNeighborhood,
+        savedAt: Date.now(),
       });
+      localStorage.setItem("kds_offline_queue", JSON.stringify(queue));
+      console.log(
+        `📦 Pedido salvo na fila offline. Total na fila: ${queue.length}`,
+      );
+    } catch (e) {
+      console.error("❌ Erro ao salvar na fila offline:", e);
+    }
+  },
 
-      const pedido = {
-        tipo: "delivery",
-        tipoOrigem: "delivery",
-        status: "pending",
-        nomeCliente: data.customerName,
-        cliente: data.customerName,
-        nome: data.customerName,
-        pagamento: paymentNames[data.paymentMethod],
-        itens: itens,
-        total: CartManager.getTotal(),
-        timestamp: Date.now(),
-        dataHora: new Date().toLocaleString("pt-BR"),
-      };
+  // Tenta reenviar todos os pedidos da fila offline
+  async _flushOfflineQueue() {
+    try {
+      const queue = JSON.parse(
+        localStorage.getItem("kds_offline_queue") || "[]",
+      );
+      if (queue.length === 0) return;
 
-      if (AppState.deliveryType === "delivery") {
-        pedido.modoConsumo = "🛵 ENTREGA";
-        // O endereço já vem montado do processCheckout
-        pedido.endereco = data.address || "";
-        if (data.complement && data.complement.trim() !== "") {
-          pedido.endereco += ` - ${data.complement.trim()}`;
+      console.log(`🔄 Reenviando ${queue.length} pedido(s) da fila offline...`);
+      const remaining = [];
+
+      for (const entry of queue) {
+        try {
+          if (!database) {
+            remaining.push(entry);
+            continue;
+          }
+          // Restaurar estado temporariamente para montar o pedido
+          const savedCart = AppState.cart;
+          const savedDeliveryType = AppState.deliveryType;
+          const savedDeliveryFee = AppState.deliveryFee;
+          const savedNeighborhood = AppState.selectedNeighborhood;
+
+          AppState.cart = entry.cart;
+          AppState.deliveryType = entry.deliveryType;
+          AppState.deliveryFee = entry.deliveryFee;
+          AppState.selectedNeighborhood = entry.selectedNeighborhood;
+
+          const pedido = this._buildPedido(entry.data);
+          pedido.reenviado = true; // marca para rastreamento
+          pedido.savedAt = entry.savedAt;
+
+          const ref = database.ref("pedidos").push();
+          await ref.set(pedido);
+
+          // Restaurar estado original
+          AppState.cart = savedCart;
+          AppState.deliveryType = savedDeliveryType;
+          AppState.deliveryFee = savedDeliveryFee;
+          AppState.selectedNeighborhood = savedNeighborhood;
+
+          console.log("✅ Pedido offline reenviado com sucesso!");
+        } catch (e) {
+          remaining.push(entry); // mantém na fila se ainda falhar
         }
-        // Adicionar bairro
-        if (data.neighborhoodInfo) {
-          pedido.bairro = data.neighborhoodInfo.text;
-        }
-        // Adicionar taxa de entrega
-        if (AppState.deliveryFee > 0) {
-          pedido.taxaEntrega = AppState.deliveryFee;
-        }
-      } else {
-        pedido.modoConsumo = "🏪 RETIRADA";
-        pedido.endereco = "RETIRADA NO LOCAL";
       }
 
-      if (data.paymentMethod === "dinheiro" && data.changeFor) {
-        pedido.troco = `Troco para R$ ${data.changeFor}`;
+      localStorage.setItem("kds_offline_queue", JSON.stringify(remaining));
+      if (remaining.length < queue.length) {
+        showToast(
+          `✅ ${queue.length - remaining.length} pedido(s) pendente(s) enviado(s) à cozinha!`,
+        );
       }
-
-      const newOrderRef = database.ref("pedidos").push();
-      await newOrderRef.set(pedido);
-
-      console.log("✅ Pedido enviado ao KDS!");
-
-      // ✅ REMOVIDO: Limpeza do carrinho agora é feita em processCheckout
-    } catch (error) {
-      console.error("❌ Erro ao enviar pedido:", error);
-      throw error; // ✅ Propagar erro para processCheckout tratar
+    } catch (e) {
+      console.error("❌ Erro ao processar fila offline:", e);
     }
   },
 };

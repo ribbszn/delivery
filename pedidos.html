@@ -5,6 +5,132 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ribbs ZN - Cardápio Digital</title>
     <link rel="stylesheet" href="zap.css" />
+    <style>
+      /* =========================================
+         MODAL CONFIRMAÇÃO DE PEDIDO - WHATSAPP
+         ========================================= */
+      .modal-confirmacao {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.88);
+        justify-content: center;
+        align-items: flex-end;
+        padding: 0;
+      }
+      .modal-confirmacao.active {
+        display: flex;
+      }
+      .modal-confirmacao-content {
+        background: #1a1a1a;
+        border-radius: 24px 24px 0 0;
+        width: 100%;
+        max-width: 540px;
+        max-height: 92vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.6);
+        animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      .modal-confirmacao-header {
+        padding: 28px 24px 16px;
+        text-align: center;
+        border-bottom: 1px solid #2a2a2a;
+        flex-shrink: 0;
+      }
+      .confirmacao-icon {
+        font-size: 2.8rem;
+        margin-bottom: 8px;
+      }
+      .modal-confirmacao-header h2 {
+        color: #fff;
+        font-size: 1.4rem;
+        margin: 0 0 4px;
+      }
+      .confirmacao-subtitle {
+        color: #888;
+        font-size: 0.9rem;
+        margin: 0;
+      }
+      .confirmacao-preview {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        background: #111;
+        margin: 16px;
+        border-radius: 14px;
+        border: 1px solid #2a2a2a;
+        font-family: "Courier New", monospace;
+        font-size: 0.82rem;
+        line-height: 1.6;
+        color: #ddd;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .confirmacao-actions {
+        padding: 16px 24px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex-shrink: 0;
+        border-top: 1px solid #2a2a2a;
+      }
+      .btn-whatsapp-confirm {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: #25d366;
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 16px;
+        border-radius: 14px;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition:
+          background 0.2s,
+          transform 0.1s;
+        box-shadow: 0 4px 20px rgba(37, 211, 102, 0.35);
+      }
+      .btn-whatsapp-confirm:active {
+        transform: scale(0.97);
+        background: #1ebe5b;
+      }
+      .whatsapp-icon {
+        font-size: 1.3rem;
+      }
+      .btn-fechar-confirmacao {
+        background: transparent;
+        border: 1px solid #333;
+        color: #888;
+        padding: 12px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition:
+          color 0.2s,
+          border-color 0.2s;
+      }
+      .btn-fechar-confirmacao:hover {
+        color: #fff;
+        border-color: #555;
+      }
+    </style>
   </head>
   <body>
     <!-- Header -->
@@ -289,6 +415,41 @@
         </form>
       </div>
     </aside>
+
+    <!-- ============================================ -->
+    <!-- MODAL: CONFIRMAÇÃO DE PEDIDO + WHATSAPP     -->
+    <!-- ============================================ -->
+    <div class="modal-confirmacao" id="modal-confirmacao">
+      <div class="modal-confirmacao-content">
+        <div class="modal-confirmacao-header">
+          <div class="confirmacao-icon">✅</div>
+          <h2>Pedido Pronto!</h2>
+          <p class="confirmacao-subtitle">
+            Revise seu pedido e envie para a loja
+          </p>
+        </div>
+
+        <div class="confirmacao-preview" id="confirmacao-preview">
+          <!-- Preenchido via JS -->
+        </div>
+
+        <div class="confirmacao-actions">
+          <a
+            id="btn-enviar-whatsapp"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-whatsapp-confirm"
+          >
+            <span class="whatsapp-icon">📲</span>
+            ENVIAR PEDIDO VIA WHATSAPP
+          </a>
+          <button class="btn-fechar-confirmacao" id="btn-fechar-confirmacao">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div id="toast-container" class="toast-container"></div>
 

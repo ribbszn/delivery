@@ -1612,6 +1612,38 @@ const ModalUI = {
 };
 
 // ================================
+// CONFIRMAÇÃO DE PEDIDO - WHATSAPP
+// ================================
+const ConfirmacaoModal = {
+  show(formattedMessage, whatsappURL) {
+    const modal = document.getElementById("modal-confirmacao");
+    const preview = document.getElementById("confirmacao-preview");
+    const btnWhatsApp = document.getElementById("btn-enviar-whatsapp");
+
+    if (!modal || !preview || !btnWhatsApp) return;
+
+    // Preenche o preview com a mensagem formatada (remove asteriscos do markdown)
+    const cleanMessage = formattedMessage
+      .replace(/\*(.*?)\*/g, "$1") // remove *bold*
+      .replace(/━/g, "─"); // troca separador pesado por leve
+    preview.textContent = cleanMessage;
+
+    // Configura o link do WhatsApp
+    btnWhatsApp.href = whatsappURL;
+
+    // Garante que o preview rola para o topo
+    preview.scrollTop = 0;
+
+    modal.classList.add("active");
+  },
+
+  close() {
+    const modal = document.getElementById("modal-confirmacao");
+    if (modal) modal.classList.remove("active");
+  },
+};
+
+// ================================
 // SIDEBAR UI
 // ================================
 const SidebarUI = {
@@ -1781,15 +1813,22 @@ const CheckoutManager = {
       data.address = `${data.street.trim()}, ${data.houseNumber.trim()}`;
     }
 
-    // ✅ Abre o WhatsApp IMEDIATAMENTE — antes de qualquer await.
-    // Browsers bloqueiam window.open() após await (contexto de clique perdido).
-    // O cliente já vê o WhatsApp abrir enquanto o pedido é enviado ao KDS em paralelo.
+    // Fecha o checkout e abre o modal de confirmação com o resumo formatado
+    // O cliente revisa o pedido e clica no botão para abrir o WhatsApp.
+    // Isso evita bloqueio de popup e oferece melhor UX.
     const whatsappURL = OrderSender.buildWhatsAppURL(data);
-    window.open(whatsappURL, "_blank");
+    const formattedMessage = OrderSender._buildMessage(data);
+
+    // Fecha checkout e carrinho antes de exibir o modal
+    this.closeCheckout();
+    SidebarUI.close();
+
+    // Exibe o modal de confirmação com o pedido formatado
+    ConfirmacaoModal.show(formattedMessage, whatsappURL);
 
     showToast("📤 Enviando pedido para a cozinha...");
 
-    // Envia ao KDS em background — não bloqueia mais o cliente
+    // Envia ao KDS em background — não bloqueia o cliente
     OrderSender.sendToKDSRobust(data).then((kdsOk) => {
       if (!kdsOk) {
         showToast(
@@ -1800,12 +1839,10 @@ const CheckoutManager = {
       }
     });
 
-    // Limpa carrinho e fecha checkout imediatamente
+    // Limpa carrinho após abrir o modal
     setTimeout(() => {
       CartManager.clear();
-      this.closeCheckout();
-      SidebarUI.close();
-    }, 1500);
+    }, 500);
   },
 
   closeCheckout() {
@@ -2269,6 +2306,24 @@ const EventListeners = {
     if (btnCloseCheckout) {
       btnCloseCheckout.addEventListener("click", () => {
         CheckoutManager.closeCheckout();
+      });
+    }
+
+    // ✅ NOVO: Fechar modal de confirmação
+    const btnFecharConfirmacao = document.getElementById(
+      "btn-fechar-confirmacao",
+    );
+    if (btnFecharConfirmacao) {
+      btnFecharConfirmacao.addEventListener("click", () => {
+        ConfirmacaoModal.close();
+      });
+    }
+
+    // ✅ NOVO: Fechar modal de confirmação ao clicar fora
+    const modalConfirmacao = document.getElementById("modal-confirmacao");
+    if (modalConfirmacao) {
+      modalConfirmacao.addEventListener("click", (e) => {
+        if (e.target === modalConfirmacao) ConfirmacaoModal.close();
       });
     }
 

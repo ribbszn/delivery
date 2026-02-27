@@ -121,6 +121,16 @@
             </div>
           </header>
 
+          <!-- Mini-resumo financeiro do dia -->
+          <div class="inicio-stats-bar" id="inicio-stats-bar">
+            <!-- preenchido via JS -->
+          </div>
+
+          <!-- Última atualização -->
+          <div class="last-update-bar">
+            🔄 Última atualização: <span id="last-update-time">—</span>
+          </div>
+
           <!-- Pedidos Ativos (Minimizável) -->
           <div class="pedidos-ativos-section">
             <div class="pedidos-ativos-header" onclick="togglePedidosAtivos()">
@@ -159,6 +169,13 @@
                   oninput="filterHistorico()"
                 />
               </div>
+
+              <!-- Totalizador do período -->
+              <div
+                class="historico-totalizador"
+                id="historico-totalizador"
+                style="display: none"
+              ></div>
 
               <div id="historico-container" class="pedidos-grid">
                 <div class="loading">Carregando histórico...</div>
@@ -781,6 +798,16 @@
         </div>
       </div>
     </div>
+
+    <!-- FAB Criar Pedido (mobile) -->
+    <button
+      class="btn-criar-pedido-fab"
+      style="display: none"
+      onclick="abrirCriarPedido()"
+      title="Criar Pedido"
+    >
+      ➕
+    </button>
 
     <!-- Áudio de notificação -->
     <audio id="beep-sound" loop>

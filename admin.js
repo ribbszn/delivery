@@ -89,9 +89,11 @@ function handleLogin(event) {
 }
 
 function handleLogout() {
-  if (confirm("Deseja realmente sair?")) {
-    window.logoutKDS();
-  }
+  adminConfirm("Deseja realmente sair do painel?", { title: "Sair" }).then(
+    (ok) => {
+      if (ok) window.logoutKDS();
+    },
+  );
 }
 
 function showLoginScreen() {
@@ -173,7 +175,7 @@ function initStoreToggle() {
       console.log(`🏪 Loja ${isOpen ? "ABERTA" : "FECHADA"}`);
     } catch (error) {
       console.error("Erro ao atualizar status da loja:", error);
-      alert("Erro ao atualizar status da loja");
+      adminToast("Erro ao atualizar status da loja", "error");
       // Reverter o toggle em caso de erro
       toggle.checked = !isOpen;
     }
@@ -494,7 +496,7 @@ async function toggleAvailability(itemNome, currentStatus, categoria) {
     renderCardapio();
   } catch (error) {
     console.error("❌ Erro ao alterar disponibilidade:", error);
-    alert("Erro ao alterar disponibilidade");
+    adminToast("Erro ao alterar disponibilidade", "error");
   }
 }
 
@@ -667,10 +669,11 @@ async function saveItemChanges() {
     refreshMenuData();
   } catch (error) {
     console.error("❌ Erro ao salvar:", error);
-    alert(
+    adminToast(
       error.code === "PERMISSION_DENIED"
-        ? "⚠️ Sem permissão para salvar. Verifique as regras do Firebase."
-        : "Erro ao salvar alterações",
+        ? "Sem permissão para salvar."
+        : "Erro ao salvar disponibilidade.",
+      "error",
     );
   }
 }
@@ -964,7 +967,7 @@ async function toggleGlobalInsumo(type, nome, currentStatus) {
     renderInsumos();
   } catch (error) {
     console.error("❌ Erro ao alterar insumo:", error);
-    alert("Erro ao alterar disponibilidade do insumo");
+    adminToast("Erro ao alterar disponibilidade do insumo", "error");
   }
 }
 
@@ -1090,7 +1093,8 @@ function _resolveCustomRange() {
   const endVal = document.getElementById("filter-date-end").value;
 
   if (!startVal || !endVal) {
-    alert("Selecione as duas datas do período.");
+    adminToast("Selecione as duas datas do período.", "warning");
+    return false;
     return false;
   }
 
@@ -1101,7 +1105,8 @@ function _resolveCustomRange() {
   dashboardFilterEnd = new Date(ey, em - 1, ed, 23, 59, 59, 999).getTime();
 
   if (dashboardFilterStart > dashboardFilterEnd) {
-    alert("A data inicial não pode ser maior que a final.");
+    adminToast("A data inicial não pode ser maior que a final.", "warning");
+    return false;
     return false;
   }
 
@@ -1163,7 +1168,7 @@ async function loadDashboardData() {
       error.code === "PERMISSION_DENIED"
         ? "Sem permissão para ler pedidos. Verifique se está autenticado."
         : `Erro ao carregar dados: ${error.message}`;
-    alert("⚠️ Dashboard: " + errorMsg);
+    adminToast(errorMsg, "error");
   }
 }
 
@@ -1500,7 +1505,11 @@ function filterPedidos() {
 // ================================================================
 
 async function deletarPedido(pedidoId) {
-  if (!confirm("Excluir este pedido permanentemente?")) return;
+  const ok = await adminConfirm("Excluir este pedido permanentemente?", {
+    title: "Excluir Pedido",
+    danger: true,
+  });
+  if (!ok) return;
 
   // Remove o card do DOM imediatamente (sem esperar Firebase)
   const card = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
@@ -1526,7 +1535,7 @@ async function deletarPedido(pedidoId) {
     await firebase.database().ref(`pedidos/${pedidoId}`).remove();
   } catch (error) {
     console.error("❌ Erro ao excluir pedido:", error);
-    alert("Erro ao excluir pedido. Recarregue a página.");
+    adminToast("Erro ao excluir pedido. Recarregue a página.", "error");
     loadPedidos(); // Re-sincroniza em caso de erro
   }
 }
@@ -1551,8 +1560,11 @@ async function excluirPedidosPorPeriodo(periodo) {
     tudo: "TODOS",
   };
 
-  if (!confirm(`Excluir permanentemente os pedidos ${labels[periodo]}?`))
-    return;
+  const ok = await adminConfirm(
+    `Excluir permanentemente os pedidos <strong>${labels[periodo]}</strong>?`,
+    { title: "Excluir Pedidos", danger: true },
+  );
+  if (!ok) return;
 
   closeModalExcluirPedidos();
 
@@ -1612,16 +1624,16 @@ async function excluirPedidosPorPeriodo(periodo) {
     });
 
     if (count === 0) {
-      alert("Nenhum pedido encontrado no período selecionado.");
+      adminToast("Nenhum pedido encontrado no período selecionado.", "warning");
       return;
     }
 
     await db.ref().update(updates);
-    alert(`${count} pedido(s) excluído(s) com sucesso.`);
+    adminToast(`${count} pedido(s) excluído(s) com sucesso.`, "success");
     loadPedidos();
   } catch (error) {
     console.error("❌ Erro ao excluir pedidos:", error);
-    alert("Erro ao excluir pedidos");
+    adminToast("Erro ao excluir pedidos", "error");
   }
 }
 
@@ -1715,7 +1727,11 @@ function closePedidoModal() {
 async function cancelarPedido() {
   if (!currentPedidoModal) return;
 
-  if (!confirm("Deseja realmente CANCELAR este pedido?")) return;
+  const ok = await adminConfirm(
+    "Deseja realmente <strong>cancelar</strong> este pedido?",
+    { title: "Cancelar Pedido", danger: true },
+  );
+  if (!ok) return;
 
   try {
     await firebase.database().ref(`pedidos/${currentPedidoModal.id}`).remove();
@@ -1726,7 +1742,7 @@ async function cancelarPedido() {
     loadPedidos();
   } catch (error) {
     console.error("❌ Erro ao cancelar:", error);
-    alert("Erro ao cancelar pedido");
+    adminToast("Erro ao cancelar pedido", "error");
   }
 }
 
@@ -1741,12 +1757,11 @@ async function finalizarPedidoRapido(pedidoId) {
   const pedido = allPedidos.find((p) => p.id === pedidoId);
   if (!pedido) return;
 
-  if (
-    !confirm(
-      `Finalizar pedido de ${pedido.nomeCliente || pedido.nome || "Cliente"}?`,
-    )
-  )
-    return;
+  const okF = await adminConfirm(
+    `Finalizar pedido de <strong>${pedido.nomeCliente || pedido.nome || "Cliente"}</strong>?`,
+    { title: "Finalizar Pedido" },
+  );
+  if (!okF) return;
 
   try {
     // Atualizar status para "entregue" — pedido fica em "pedidos" com status entregue
@@ -1764,7 +1779,7 @@ async function finalizarPedidoRapido(pedidoId) {
     loadPedidos();
   } catch (error) {
     console.error("❌ Erro ao finalizar:", error);
-    alert("Erro ao finalizar pedido");
+    adminToast("Erro ao finalizar pedido", "error");
   }
 }
 
@@ -1953,7 +1968,6 @@ function setupKDSListener() {
 async function loadInicioData() {
   console.log("📦 Carregando dados da seção Início...");
 
-  // Configurar listener do KDS apenas uma vez
   if (!window.kdsListenerSetup) {
     setupKDSListener();
     window.kdsListenerSetup = true;
@@ -1961,6 +1975,114 @@ async function loadInicioData() {
 
   await loadPedidosAtivos();
   await loadHistoricoData();
+  await updateInicioStats(); // mini-resumo financeiro do dia
+}
+
+// ── MINI-RESUMO DO DIA (topo da seção Início) ────────────────────
+async function updateInicioStats() {
+  try {
+    const today = new Date();
+    const dayStart = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      0,
+      0,
+      0,
+      0,
+    ).getTime();
+    const dayEnd = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      23,
+      59,
+      59,
+      999,
+    ).getTime();
+
+    const snap = await firebase.database().ref("pedidos").once("value");
+    let faturamento = 0,
+      qtd = 0,
+      cancelados = 0;
+
+    snap.forEach((child) => {
+      const p = child.val();
+      if (!p.timestamp || p.timestamp < dayStart || p.timestamp > dayEnd)
+        return;
+      if (p.status === "cancelled") {
+        cancelados++;
+        return;
+      }
+      faturamento += p.total || 0;
+      qtd++;
+    });
+
+    const ticket = qtd > 0 ? faturamento / qtd : 0;
+
+    const el = document.getElementById("inicio-stats-bar");
+    if (!el) return;
+
+    el.innerHTML = `
+      <div class="istat-card">
+        <span class="istat-label">💰 Faturamento hoje</span>
+        <span class="istat-value">R$ ${faturamento.toFixed(2)}</span>
+      </div>
+      <div class="istat-card">
+        <span class="istat-label">📦 Pedidos hoje</span>
+        <span class="istat-value">${qtd}</span>
+      </div>
+      <div class="istat-card">
+        <span class="istat-label">🎯 Ticket médio</span>
+        <span class="istat-value">R$ ${ticket.toFixed(2)}</span>
+      </div>
+      ${
+        cancelados > 0
+          ? `<div class="istat-card istat-card--warn">
+        <span class="istat-label">❌ Cancelados</span>
+        <span class="istat-value">${cancelados}</span>
+      </div>`
+          : ""
+      }
+    `;
+
+    // Atualizar timestamp de última atualização
+    const tsEl = document.getElementById("last-update-time");
+    if (tsEl)
+      tsEl.textContent = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+    // Badge no nav
+    updateNavBadge(
+      pedidosAtivos.filter((p) => !p.aceito && !pedidosAceitosNoKDS.has(p.id))
+        .length,
+    );
+  } catch (e) {
+    console.warn("Erro ao carregar stats do início:", e);
+  }
+}
+
+// ── BADGE DE PEDIDOS PENDENTES NO NAV ────────────────────────────
+function updateNavBadge(count) {
+  let badge = document.getElementById("nav-badge-inicio");
+  const btn = document.querySelector('[data-section="inicio"]');
+  if (!btn) return;
+
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.id = "nav-badge-inicio";
+    badge.className = "nav-badge";
+    btn.appendChild(badge);
+  }
+
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = "inline-flex";
+  } else {
+    badge.style.display = "none";
+  }
 }
 
 function refreshInicioData() {
@@ -2171,7 +2293,7 @@ async function aceitarPedido(pedidoId) {
     await loadPedidosAtivos();
   } catch (error) {
     console.error("❌ Erro ao aceitar pedido:", error);
-    alert("Erro ao aceitar pedido");
+    adminToast("Erro ao aceitar pedido", "error");
   }
 }
 
@@ -2180,13 +2302,11 @@ async function aceitarPedido(pedidoId) {
 // ================================================================
 
 async function excluirPedido(pedidoId) {
-  if (
-    !confirm(
-      "Deseja realmente EXCLUIR este pedido?\n\nEsta ação não pode ser desfeita.",
-    )
-  ) {
-    return;
-  }
+  const okD = await adminConfirm(
+    "Deseja realmente <strong>excluir</strong> este pedido? Esta ação não pode ser desfeita.",
+    { title: "Excluir Pedido", danger: true },
+  );
+  if (!okD) return;
 
   try {
     const db = firebase.database();
@@ -2203,7 +2323,7 @@ async function excluirPedido(pedidoId) {
     await loadPedidosAtivos();
   } catch (error) {
     console.error("❌ Erro ao excluir pedido:", error);
-    alert("Erro ao excluir pedido");
+    adminToast("Erro ao excluir pedido", "error");
   }
 }
 
@@ -2212,17 +2332,11 @@ async function excluirPedido(pedidoId) {
 // ================================================================
 
 async function excluirTodosPedidosAtivos() {
-  if (
-    !confirm(
-      `Deseja realmente EXCLUIR TODOS os ${pedidosAtivos.length} pedidos ativos?\n\n⚠️ ATENÇÃO: Esta ação não pode ser desfeita!`,
-    )
-  ) {
-    return;
-  }
-
-  if (!confirm("Tem certeza? Esta é sua última chance de cancelar.")) {
-    return;
-  }
+  const ok = await adminConfirm(
+    `Excluir <strong>todos os ${pedidosAtivos.length} pedidos ativos</strong>? Esta ação não pode ser desfeita.`,
+    { title: "Excluir Todos", danger: true },
+  );
+  if (!ok) return;
 
   try {
     const db = firebase.database();
@@ -2246,10 +2360,13 @@ async function excluirTodosPedidosAtivos() {
     // Recarregar
     await loadPedidosAtivos();
 
-    alert("Todos os pedidos ativos foram excluídos com sucesso!");
+    adminToast(
+      "Todos os pedidos ativos foram excluídos com sucesso!",
+      "success",
+    );
   } catch (error) {
     console.error("❌ Erro ao excluir pedidos:", error);
-    alert("Erro ao excluir pedidos");
+    adminToast("Erro ao excluir pedidos", "error");
   }
 }
 
@@ -2342,6 +2459,27 @@ function filterHistorico() {
 
 function renderHistorico() {
   const container = document.getElementById("historico-container");
+
+  // ── Totalizador do histórico ──
+  const totalHist = filteredHistorico.reduce((s, p) => s + (p.total || 0), 0);
+  const cancelHist = filteredHistorico.filter(
+    (p) => p.status === "cancelled",
+  ).length;
+  const okHist = filteredHistorico.length - cancelHist;
+  const totEl = document.getElementById("historico-totalizador");
+  if (totEl) {
+    if (filteredHistorico.length > 0) {
+      totEl.style.display = "flex";
+      totEl.innerHTML = `
+        <span>📦 <strong>${filteredHistorico.length}</strong> pedido${filteredHistorico.length !== 1 ? "s" : ""}</span>
+        <span>✅ <strong>${okHist}</strong> concluído${okHist !== 1 ? "s" : ""}</span>
+        ${cancelHist > 0 ? `<span>❌ <strong>${cancelHist}</strong> cancelado${cancelHist !== 1 ? "s" : ""}</span>` : ""}
+        <span class="hist-total-valor">💰 Total: <strong>R$ ${totalHist.toFixed(2)}</strong></span>
+      `;
+    } else {
+      totEl.style.display = "none";
+    }
+  }
 
   if (filteredHistorico.length === 0) {
     container.innerHTML = `
@@ -3046,8 +3184,11 @@ function adicionarAoCarrinhoAdmin() {
   renderCarrinhoAdmin();
 }
 
-function limparCarrinhoAdmin() {
-  if (!confirm("Limpar o carrinho?")) return;
+async function limparCarrinhoAdmin() {
+  const ok = await adminConfirm("Limpar o carrinho?", {
+    title: "Limpar Carrinho",
+  });
+  if (!ok) return;
   AdminPedido.cart = [];
   renderCarrinhoAdmin();
 }
@@ -3310,7 +3451,8 @@ async function enviarPedidoAdmin() {
 // TOAST DO ADMIN
 // ================================================================
 
-function adminToast(message) {
+function adminToast(message, type = "info") {
+  // type: "success" | "error" | "warning" | "info"
   let container = document.getElementById("admin-toast-container");
   if (!container) {
     container = document.createElement("div");
@@ -3319,12 +3461,59 @@ function adminToast(message) {
     document.body.appendChild(container);
   }
 
+  const icons = { success: "✅", error: "❌", warning: "⚠️", info: "ℹ️" };
   const toast = document.createElement("div");
-  toast.className = "admin-toast";
-  toast.textContent = message;
+  toast.className = `admin-toast admin-toast--${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icons[type] || "ℹ️"}</span><span class="toast-msg">${message}</span>`;
   container.appendChild(toast);
 
-  setTimeout(() => toast.remove(), 3000);
+  // Entrada animada
+  requestAnimationFrame(() => toast.classList.add("toast-visible"));
+
+  setTimeout(() => {
+    toast.classList.remove("toast-visible");
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+// ── MODAL DE CONFIRMAÇÃO (substitui confirm() nativo) ──────────────
+function adminConfirm(message, { title = "Confirmar", danger = false } = {}) {
+  return new Promise((resolve) => {
+    // Remove modal anterior se existir
+    document.getElementById("admin-confirm-modal")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "admin-confirm-modal";
+    overlay.className = "confirm-overlay";
+
+    overlay.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-header ${danger ? "confirm-header--danger" : ""}">
+          <span>${danger ? "⚠️" : "💬"} ${title}</span>
+        </div>
+        <div class="confirm-body">${message}</div>
+        <div class="confirm-footer">
+          <button class="btn-secondary confirm-cancel">Cancelar</button>
+          <button class="${danger ? "btn-danger" : "btn-primary"} confirm-ok">Confirmar</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add("confirm-visible"));
+
+    const close = (result) => {
+      overlay.classList.remove("confirm-visible");
+      setTimeout(() => overlay.remove(), 200);
+      resolve(result);
+    };
+
+    overlay.querySelector(".confirm-ok").onclick = () => close(true);
+    overlay.querySelector(".confirm-cancel").onclick = () => close(false);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+  });
 }
 
 // ================================================================

@@ -2954,3 +2954,354 @@ body {
   font-size: 0.82rem;
   color: var(--text-secondary);
 }
+
+/* ================================================================
+   MELHORIAS DE UX — ITENS 1-10
+   ================================================================ */
+
+/* ── TOAST TIPADO ── */
+.admin-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.admin-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #fff;
+  background: #2a2a2a;
+  border-left: 4px solid #555;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transform: translateX(20px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+  pointer-events: all;
+  min-width: 240px;
+  max-width: 360px;
+}
+
+.admin-toast.toast-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.admin-toast--success {
+  border-left-color: var(--success);
+}
+.admin-toast--error {
+  border-left-color: var(--danger);
+}
+.admin-toast--warning {
+  border-left-color: var(--warning);
+}
+.admin-toast--info {
+  border-left-color: #2196f3;
+}
+
+.toast-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.toast-msg {
+  flex: 1;
+  line-height: 1.4;
+}
+
+/* ── MODAL DE CONFIRMAÇÃO ── */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.confirm-overlay.confirm-visible {
+  opacity: 1;
+}
+
+.confirm-box {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 420px;
+  margin: 20px;
+  overflow: hidden;
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.confirm-overlay.confirm-visible .confirm-box {
+  transform: scale(1);
+}
+
+.confirm-header {
+  padding: 16px 20px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-hover);
+}
+
+.confirm-header--danger {
+  border-bottom-color: var(--danger);
+  color: var(--danger);
+}
+
+.confirm-body {
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.confirm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── MINI-RESUMO FINANCEIRO (INÍCIO) ── */
+.inicio-stats-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.istat-card {
+  flex: 1;
+  min-width: 140px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s;
+}
+
+.istat-card:hover {
+  border-color: var(--primary);
+}
+.istat-card--warn {
+  border-color: var(--danger) !important;
+}
+
+.istat-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.istat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.istat-card--warn .istat-value {
+  color: var(--danger);
+}
+
+/* ── ÚLTIMA ATUALIZAÇÃO ── */
+.last-update-bar {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.last-update-bar span {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ── BADGE NO NAV ── */
+.nav-btn {
+  position: relative;
+}
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 99px;
+  padding: 0 5px;
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  animation: badge-pop 0.25s ease;
+}
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ── TOTALIZADOR DO HISTÓRICO ── */
+.historico-totalizador {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.historico-totalizador strong {
+  color: var(--text-primary);
+}
+
+.hist-total-valor {
+  margin-left: auto;
+  font-size: 0.95rem;
+}
+
+.hist-total-valor strong {
+  color: var(--primary);
+  font-size: 1.05rem;
+}
+
+/* ── MOBILE: BOTTOM NAV ── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    border-right: none;
+    border-top: 2px solid var(--border);
+    padding: 0;
+    z-index: 100;
+  }
+
+  .sidebar-header,
+  .btn-logout,
+  .btn-criar-pedido {
+    display: none;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    gap: 0;
+    padding: 0;
+    overflow-x: auto;
+  }
+
+  .nav-btn {
+    flex: 1;
+    flex-direction: column;
+    border-left: none !important;
+    border-bottom: none;
+    border-radius: 0;
+    padding: 8px 4px;
+    font-size: 0.62rem;
+    gap: 3px;
+    text-align: center;
+    min-width: 56px;
+  }
+
+  .nav-btn.active {
+    border-top: 3px solid var(--primary);
+    background: var(--bg-hover);
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding-bottom: 72px;
+  }
+
+  /* Botão criar pedido vira FAB no mobile */
+  .btn-criar-pedido-fab {
+    display: flex !important;
+    position: fixed;
+    bottom: 70px;
+    right: 16px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #111;
+    font-size: 1.4rem;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    z-index: 101;
+  }
+
+  .inicio-stats-bar {
+    gap: 8px;
+  }
+  .istat-card {
+    min-width: 120px;
+    padding: 10px 14px;
+  }
+  .istat-value {
+    font-size: 1.15rem;
+  }
+
+  .dashboard-filter-bar {
+    padding: 12px;
+  }
+  .filter-shortcuts {
+    gap: 6px;
+  }
+  .filter-shortcut {
+    padding: 7px 12px;
+    font-size: 0.8rem;
+  }
+}

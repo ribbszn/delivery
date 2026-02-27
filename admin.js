@@ -982,34 +982,188 @@ function refreshInsumosData() {
 // DASHBOARD FINANCEIRO
 // ================================================================
 
+// ================================================================
+// DASHBOARD — FILTRO AVANÇADO DE PERÍODO
+// ================================================================
+
+let dashboardFilterStart = null;
+let dashboardFilterEnd = null;
+
+function _localDayStart(date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    0,
+    0,
+    0,
+    0,
+  ).getTime();
+}
+function _localDayEnd(date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  ).getTime();
+}
+function _fmtDate(ts) {
+  return new Date(ts).toLocaleDateString("pt-BR");
+}
+
+function applyShortcut(shortcut) {
+  const today = new Date();
+  let start, end;
+
+  document
+    .querySelectorAll(".filter-shortcut")
+    .forEach((b) => b.classList.remove("active"));
+  document
+    .querySelector(`[data-shortcut="${shortcut}"]`)
+    .classList.add("active");
+
+  const customRange = document.getElementById("filter-custom-range");
+
+  switch (shortcut) {
+    case "hoje":
+      start = _localDayStart(today);
+      end = _localDayEnd(today);
+      customRange.style.display = "none";
+      document.getElementById("filter-period-text").textContent =
+        `Hoje, ${_fmtDate(start)}`;
+      break;
+
+    case "ontem": {
+      const ontem = new Date(today);
+      ontem.setDate(today.getDate() - 1);
+      start = _localDayStart(ontem);
+      end = _localDayEnd(ontem);
+      customRange.style.display = "none";
+      document.getElementById("filter-period-text").textContent =
+        `Ontem, ${_fmtDate(start)}`;
+      break;
+    }
+
+    case "semana": {
+      const semAgo = new Date(today);
+      semAgo.setDate(today.getDate() - 6);
+      start = _localDayStart(semAgo);
+      end = _localDayEnd(today);
+      customRange.style.display = "none";
+      document.getElementById("filter-period-text").textContent =
+        `${_fmtDate(start)} → ${_fmtDate(end)}`;
+      break;
+    }
+
+    case "mes": {
+      const mesStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      start = _localDayStart(mesStart);
+      end = _localDayEnd(today);
+      customRange.style.display = "none";
+      document.getElementById("filter-period-text").textContent =
+        `${_fmtDate(start)} → ${_fmtDate(end)}`;
+      break;
+    }
+
+    case "personalizado": {
+      customRange.style.display = "flex";
+      const startInput = document.getElementById("filter-date-start");
+      const endInput = document.getElementById("filter-date-end");
+      if (!startInput.value)
+        startInput.value = today.toISOString().split("T")[0];
+      if (!endInput.value) endInput.value = today.toISOString().split("T")[0];
+      return;
+    }
+  }
+
+  dashboardFilterStart = start;
+  dashboardFilterEnd = end;
+  loadDashboardData();
+}
+
+function _resolveCustomRange() {
+  const startVal = document.getElementById("filter-date-start").value;
+  const endVal = document.getElementById("filter-date-end").value;
+
+  if (!startVal || !endVal) {
+    alert("Selecione as duas datas do período.");
+    return false;
+  }
+
+  const [sy, sm, sd] = startVal.split("-").map(Number);
+  const [ey, em, ed] = endVal.split("-").map(Number);
+
+  dashboardFilterStart = new Date(sy, sm - 1, sd, 0, 0, 0, 0).getTime();
+  dashboardFilterEnd = new Date(ey, em - 1, ed, 23, 59, 59, 999).getTime();
+
+  if (dashboardFilterStart > dashboardFilterEnd) {
+    alert("A data inicial não pode ser maior que a final.");
+    return false;
+  }
+
+  document.getElementById("filter-period-text").textContent =
+    `${_fmtDate(dashboardFilterStart)} → ${_fmtDate(dashboardFilterEnd)}`;
+  return true;
+}
+
 async function loadDashboardData() {
   console.log("📊 Carregando dashboard...");
 
-  const selectedDate = document.getElementById("filter-date").value;
-  const dateStart = new Date(selectedDate + "T00:00:00.000").getTime();
-  const dateEnd = new Date(selectedDate + "T23:59:59.999").getTime();
+  const activeShortcut = document.querySelector(".filter-shortcut.active")
+    ?.dataset?.shortcut;
+  if (activeShortcut === "personalizado") {
+    if (!_resolveCustomRange()) return;
+  }
+
+  if (!dashboardFilterStart || !dashboardFilterEnd) {
+    applyShortcut("hoje");
+    return;
+  }
+
+  const dateStart = dashboardFilterStart;
+  const dateEnd = dashboardFilterEnd;
+
+  console.log(
+    "📅 Filtro:",
+    new Date(dateStart).toLocaleString("pt-BR"),
+    "→",
+    new Date(dateEnd).toLocaleString("pt-BR"),
+  );
 
   try {
-    // Buscar todos os pedidos do dia (incluindo entregues, que ficam em "pedidos")
-    const pedidosSnap = await firebase
-      .database()
-      .ref("pedidos")
-      .orderByChild("timestamp")
-      .startAt(dateStart)
-      .endAt(dateEnd)
-      .once("value");
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("Timeout: Firebase não respondeu em 10s")),
+        10000,
+      ),
+    );
+    const queryPromise = firebase.database().ref("pedidos").once("value");
+    const pedidosSnap = await Promise.race([queryPromise, timeoutPromise]);
 
     const pedidos = [];
     pedidosSnap.forEach((child) => {
-      pedidos.push({ id: child.key, ...child.val() });
+      const p = { id: child.key, ...child.val() };
+      if (p.timestamp && p.timestamp >= dateStart && p.timestamp <= dateEnd) {
+        pedidos.push(p);
+      }
     });
 
-    dashboardData = calculateMetrics(pedidos);
+    console.log(`📦 ${pedidos.length} pedido(s) encontrado(s) para o período`);
 
+    dashboardData = calculateMetrics(pedidos);
     renderDashboard();
     renderCharts();
   } catch (error) {
     console.error("❌ Erro ao carregar dashboard:", error);
+    const errorMsg =
+      error.code === "PERMISSION_DENIED"
+        ? "Sem permissão para ler pedidos. Verifique se está autenticado."
+        : `Erro ao carregar dados: ${error.message}`;
+    alert("⚠️ Dashboard: " + errorMsg);
   }
 }
 
@@ -2104,23 +2258,25 @@ async function loadHistoricoData() {
   try {
     const db = firebase.database();
 
-    // Converter data para timestamp
-    const dateStart = new Date(filterDate + "T00:00:00.000").getTime();
-    const dateEnd = new Date(filterDate + "T23:59:59.999").getTime();
+    // FIX: usar new Date(y,m,d) para garantir horário local sem ambiguidade de fuso
+    const [hy, hm, hd] = filterDate.split("-").map(Number);
+    const dateStart = new Date(hy, hm - 1, hd, 0, 0, 0, 0).getTime();
+    const dateEnd = new Date(hy, hm - 1, hd, 23, 59, 59, 999).getTime();
 
-    // Buscar pedidos entregues de "pedidos" (não existe nó "historico" nas regras)
-    const snapshot = await db
-      .ref("pedidos")
-      .orderByChild("timestamp")
-      .startAt(dateStart)
-      .endAt(dateEnd)
-      .once("value");
+    // FIX: buscar tudo e filtrar no cliente (evita travamento por índice)
+    const snapshot = await db.ref("pedidos").once("value");
 
     historicoPedidos = [];
     snapshot.forEach((child) => {
       const pedido = { id: child.key, ...child.val() };
-      // Mostrar apenas pedidos finalizados/entregues no histórico
-      if (pedido.status === "entregue") {
+      // Filtrar por data e status finalizado
+      if (
+        pedido.timestamp >= dateStart &&
+        pedido.timestamp <= dateEnd &&
+        (pedido.status === "entregue" ||
+          pedido.status === "completed" ||
+          pedido.status === "cancelled")
+      ) {
         historicoPedidos.push(pedido);
       }
     });

@@ -638,23 +638,129 @@ body {
 /* DASHBOARD */
 /* ============================================ */
 
-.date-filter {
+/* ── FILTRO AVANÇADO DE DASHBOARD ── */
+.dashboard-filter-bar {
   display: flex;
+  flex-direction: column;
   gap: 12px;
+  margin-bottom: 28px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
 }
 
-.date-filter input {
-  padding: 10px 16px;
-  background: var(--bg-card);
+.filter-shortcuts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-shortcut {
+  padding: 8px 16px;
+  background: var(--bg-hover);
+  border: 2px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.filter-shortcut:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-shortcut.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #111;
+}
+
+.filter-custom-range {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.filter-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-range-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-range-group label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-range-group input[type="date"] {
+  padding: 9px 14px;
+  background: var(--bg-hover);
   border: 2px solid var(--border);
   color: var(--text-primary);
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+  cursor: pointer;
 }
 
-.date-filter input:focus {
+.filter-range-group input[type="date"]:focus {
   outline: none;
   border-color: var(--primary);
+}
+
+.filter-range-sep {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-top: 18px;
+}
+
+.btn-aplicar {
+  padding: 9px 20px;
+  background: var(--primary);
+  border: none;
+  color: #111;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 18px;
+  transition: background 0.15s;
+}
+
+.btn-aplicar:hover {
+  background: var(--primary-dark);
+}
+
+.filter-period-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding-top: 2px;
+}
+
+.filter-period-label span {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* legado — mantido oculto */
+.date-filter {
+  display: none;
 }
 
 .metrics-grid {

@@ -257,14 +257,75 @@
         <section id="section-dashboard" class="content-section">
           <header class="section-header">
             <h1>Dashboard Financeiro</h1>
-            <div class="date-filter">
-              <input
-                type="date"
-                id="filter-date"
-                onchange="loadDashboardData()"
-              />
-            </div>
           </header>
+
+          <!-- FILTRO AVANÇADO -->
+          <div class="dashboard-filter-bar">
+            <!-- Atalhos rápidos -->
+            <div class="filter-shortcuts">
+              <button
+                class="filter-shortcut active"
+                data-shortcut="hoje"
+                onclick="applyShortcut('hoje')"
+              >
+                Hoje
+              </button>
+              <button
+                class="filter-shortcut"
+                data-shortcut="ontem"
+                onclick="applyShortcut('ontem')"
+              >
+                Ontem
+              </button>
+              <button
+                class="filter-shortcut"
+                data-shortcut="semana"
+                onclick="applyShortcut('semana')"
+              >
+                Últimos 7 dias
+              </button>
+              <button
+                class="filter-shortcut"
+                data-shortcut="mes"
+                onclick="applyShortcut('mes')"
+              >
+                Este mês
+              </button>
+              <button
+                class="filter-shortcut"
+                data-shortcut="personalizado"
+                onclick="applyShortcut('personalizado')"
+              >
+                Personalizado
+              </button>
+            </div>
+
+            <!-- Seletor de período personalizado (oculto por padrão) -->
+            <div class="filter-custom-range" id="filter-custom-range">
+              <div class="filter-range-inputs">
+                <div class="filter-range-group">
+                  <label>De</label>
+                  <input type="date" id="filter-date-start" />
+                </div>
+                <span class="filter-range-sep">→</span>
+                <div class="filter-range-group">
+                  <label>Até</label>
+                  <input type="date" id="filter-date-end" />
+                </div>
+                <button class="btn-aplicar" onclick="loadDashboardData()">
+                  Aplicar
+                </button>
+              </div>
+            </div>
+
+            <!-- Resumo do período ativo -->
+            <div class="filter-period-label" id="filter-period-label">
+              📅 <span id="filter-period-text">Carregando...</span>
+            </div>
+
+            <!-- Campo legado mantido oculto para compatibilidade interna -->
+            <input type="date" id="filter-date" style="display: none" />
+          </div>
 
           <!-- Cards de Métricas -->
           <div class="metrics-grid">

@@ -1186,9 +1186,11 @@ function calculateMetrics(pedidos) {
       countTempo++;
     }
 
-    // Método de pagamento
+    // Método de pagamento — acumula quantidade E valor
     const pag = p.pagamento || "Não informado";
-    pagamentos[pag] = (pagamentos[pag] || 0) + 1;
+    if (!pagamentos[pag]) pagamentos[pag] = { qtd: 0, valor: 0 };
+    pagamentos[pag].qtd += 1;
+    pagamentos[pag].valor += p.total || 0;
 
     // Analisar itens
     if (p.itens) {
@@ -1305,43 +1307,66 @@ function renderCharts() {
     },
   });
 
-  // Gráfico de Pagamento
-  const ctxPag = document.getElementById("chart-pagamento");
+  // Render cards de pagamento detalhados
+  renderPagamentosDetalhes();
+}
 
-  if (window.chartPagamento) window.chartPagamento.destroy();
+function renderPagamentosDetalhes() {
+  const container = document.getElementById("pagamentos-detalhes");
+  if (!container || !dashboardData) return;
 
-  window.chartPagamento = new Chart(ctxPag, {
-    type: "bar",
-    data: {
-      labels: Object.keys(dashboardData.pagamentos),
-      datasets: [
-        {
-          label: "Pedidos",
-          data: Object.values(dashboardData.pagamentos),
-          backgroundColor: "#ffc107",
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          labels: { color: "#fff" },
-        },
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { color: "#fff" },
-          grid: { color: "#333" },
-        },
-        x: {
-          ticks: { color: "#fff" },
-          grid: { color: "#333" },
-        },
-      },
-    },
+  const pagamentos = dashboardData.pagamentos;
+  const totalVendas = dashboardData.totalVendas;
+
+  const icones = {
+    Dinheiro: "💵",
+    dinheiro: "💵",
+    "Cartão de Crédito": "💳",
+    Crédito: "💳",
+    credito: "💳",
+    "Cartão de Débito": "💳",
+    Débito: "💳",
+    debito: "💳",
+    Pix: "⚡",
+    PIX: "⚡",
+    pix: "⚡",
+    "Não informado": "❓",
+  };
+
+  const entries = Object.entries(pagamentos).sort(
+    (a, b) => b[1].valor - a[1].valor,
+  );
+
+  if (entries.length === 0) {
+    container.innerHTML =
+      '<p style="color:var(--text-secondary);text-align:center;padding:20px">Sem dados no período</p>';
+    return;
+  }
+
+  let html = "";
+  entries.forEach(([metodo, dados]) => {
+    const pct =
+      totalVendas > 0 ? ((dados.valor / totalVendas) * 100).toFixed(1) : "0.0";
+    const icone = icones[metodo] || "💰";
+    html += `
+      <div class="pag-card">
+        <div class="pag-card-header">
+          <span class="pag-icone">${icone}</span>
+          <span class="pag-nome">${metodo}</span>
+          <span class="pag-pct">${pct}%</span>
+        </div>
+        <div class="pag-barra-bg">
+          <div class="pag-barra-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="pag-card-footer">
+          <span class="pag-valor">R$ ${dados.valor.toFixed(2)}</span>
+          <span class="pag-qtd">${dados.qtd} pedido${dados.qtd !== 1 ? "s" : ""}</span>
+        </div>
+      </div>
+    `;
   });
+
+  container.innerHTML = html;
 }
 
 // ================================================================

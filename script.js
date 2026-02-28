@@ -1,6 +1,6 @@
-let currentCategory = "Promoções"; // Categoria inicial
+"use strict";
 
-("use strict");
+let currentCategory = "Promoções"; // Categoria inicial
 
 let cardapioData = {};
 let cart = [];
@@ -53,6 +53,12 @@ let comboCustomization = {
   currentBurgerIndex: -1, // Índice do burger sendo customizado (0, 1, 2...)
   totalCustomizations: [], // Array para armazenar as customizações de cada burger
   basePrice: 0, // Preço base do combo
+  // Campos de upgrade (batata + bebida) para categoria "Combos"
+  processingUpgrade: null, // 'batata' | 'bebida' | null
+  selectedBatata: null,
+  selectedBebida: null,
+  batataPriceAdjust: 0,
+  bebidaPriceAdjust: 0,
 };
 
 const sounds = {
@@ -524,6 +530,13 @@ function generateCustomDetails(custom) {
       const extraNames = custom.comboExtras.map((e) => e.nome);
       details.push(`Extras Combo: ${extraNames.join(", ")}`);
     }
+
+    if (custom.selectedBatata) {
+      details.push(`🍟 ${custom.selectedBatata}`);
+    }
+    if (custom.selectedBebida) {
+      details.push(`🥤 ${custom.selectedBebida}`);
+    }
   } else {
     if (custom.calda) {
       details.push(`Calda: ${custom.calda}`);
@@ -657,7 +670,7 @@ function adjustQuantity(index, delta) {
     const itemData = findItemInMenu(itemName);
 
     if (itemData && itemData.category) {
-      const itemKey = `${itemData.category}-${itemData.name}`;
+      const itemKey = `${itemData.category}:${itemData.name}`;
 
       if (menuAvailability[itemKey] === false) {
         showToastFeedback(`❌ ${itemName} está indisponível`);
@@ -819,9 +832,17 @@ function showCategory(cat, btn) {
         optionDiv.style.opacity = "0.5";
       }
 
-      optionDiv.innerHTML = `<p>${op || item.nome}</p><p>R$ ${Number(
-        price,
-      ).toFixed(2)}</p>`;
+      const originalPrice =
+        item.precoOriginal && item.precoOriginal[j] != null
+          ? item.precoOriginal[j]
+          : null;
+
+      const priceHtml = originalPrice
+        ? `<span class="preco-antigo">R$ ${Number(originalPrice).toFixed(2)}</span>
+           <span class="preco-promocional">R$ ${Number(price).toFixed(2)}</span>`
+        : `<p>R$ ${Number(price).toFixed(2)}</p>`;
+
+      optionDiv.innerHTML = `<p>${op || item.nome}</p><div class="preco-wrapper">${priceHtml}</div>`;
 
       const needsCustom = hasCustomization(item);
       const isMilkShake = item.nome.toLowerCase().includes("milk shake");
@@ -878,8 +899,8 @@ function openPopupCustom(cat, itemIndex, optionIndex) {
 
   currentItem = { cat, itemIndex, optionIndex };
 
-  // Lógica para Combos (Promoções)
-  if (item.combo && item.burgers && cat === "Promoções") {
+  // Lógica para Combos (Promoções, Clones e Combos)
+  if (item.combo && item.burgers) {
     const preco =
       item.precoBase[optionIndex] !== undefined
         ? item.precoBase[optionIndex]
@@ -1110,9 +1131,25 @@ function finalizeComboOrder() {
     comboDetails.burgers.push(burgerCustom);
   });
 
+  // ── Upgrades de batata + bebida ──
+  finalPrice += comboCustomization.batataPriceAdjust || 0;
+  finalPrice += comboCustomization.bebidaPriceAdjust || 0;
+
+  if (comboCustomization.selectedBatata) {
+    comboDetails.selectedBatata = comboCustomization.selectedBatata;
+  }
+  if (comboCustomization.selectedBebida) {
+    comboDetails.selectedBebida = comboCustomization.selectedBebida;
+  }
+
   const fullName = item.nome;
   addToCart(fullName, finalPrice, comboDetails);
   comboCustomization.currentBurgerIndex = -1;
+  comboCustomization.processingUpgrade = null;
+  comboCustomization.selectedBatata = null;
+  comboCustomization.selectedBebida = null;
+  comboCustomization.batataPriceAdjust = 0;
+  comboCustomization.bebidaPriceAdjust = 0;
   closePopupCustom();
 }
 window.openPopupCustom = openPopupCustom;
@@ -1124,6 +1161,12 @@ window.openPopupCustom = openPopupCustom;
 function confirmPopupCustom() {
   playSound("click");
   const questionDiv = document.getElementById("popupQuestion");
+
+  // ── Upgrade flow: batata → bebida (Combos com batata) ──
+  if (comboCustomization.processingUpgrade !== null) {
+    handleUpgradeConfirm();
+    return;
+  }
 
   if (comboCustomization.currentBurgerIndex !== -1) {
     const { item, currentBurgerIndex, totalCustomizations } =
@@ -1161,6 +1204,13 @@ function confirmPopupCustom() {
       return;
     }
 
+    // ── Combos com batata + bebida (categoria "Combos") ──
+    if (item.upgrades) {
+      comboCustomization.currentBurgerIndex = -1;
+      startUpgradeFlow(item);
+      return;
+    }
+
     finalizeComboOrder();
     return;
   }
@@ -1192,8 +1242,169 @@ function confirmPopupCustom() {
 }
 window.confirmPopupCustom = confirmPopupCustom;
 
+// ===============================================
+// Upgrade Flow — Batata + Bebida (Combos com batata)
+// ===============================================
+
+function startUpgradeFlow(item) {
+  if (item.upgrades.batata && item.upgrades.batata.length > 0) {
+    renderBatataUpgrade(item.upgrades.batata);
+  } else if (item.upgrades.bebida && item.upgrades.bebida.length > 0) {
+    renderBebidaUpgrade(item.upgrades.bebida);
+  } else {
+    finalizeComboOrder();
+  }
+}
+
+function handleUpgradeConfirm() {
+  const item = comboCustomization.item;
+
+  if (comboCustomization.processingUpgrade === "batata") {
+    // selectedBatata já foi salvo pelo radio onChange
+    if (item.upgrades.bebida && item.upgrades.bebida.length > 0) {
+      renderBebidaUpgrade(item.upgrades.bebida);
+    } else {
+      comboCustomization.processingUpgrade = null;
+      finalizeComboOrder();
+    }
+  } else if (comboCustomization.processingUpgrade === "bebida") {
+    // selectedBebida já foi salvo pelo radio onChange
+    comboCustomization.processingUpgrade = null;
+    finalizeComboOrder();
+  }
+}
+
+function renderBatataUpgrade(upgrades) {
+  const item = comboCustomization.item;
+
+  // Auto-selecionar a primeira opção
+  if (!comboCustomization.selectedBatata) {
+    comboCustomization.selectedBatata = upgrades[0].nome;
+    comboCustomization.batataPriceAdjust = upgrades[0].adicional || 0;
+  }
+
+  const title = document.getElementById("popupCustomTitle");
+  title.textContent = `${item.nome} — Escolha a Batata 🍟`;
+
+  const questionDiv = document.getElementById("popupQuestion");
+  questionDiv.innerHTML = "";
+
+  const section = document.createElement("div");
+  section.innerHTML = "<h4>Tamanho da Batata:</h4>";
+
+  upgrades.forEach((opt, i) => {
+    const isSelected = comboCustomization.selectedBatata === opt.nome;
+    const priceText =
+      opt.adicional > 0
+        ? `(+R$ ${opt.adicional.toFixed(2)})`
+        : opt.adicional < 0
+          ? `(-R$ ${Math.abs(opt.adicional).toFixed(2)})`
+          : "(Inclusa)";
+
+    const label = document.createElement("label");
+    label.className = "upgrade-option";
+    label.innerHTML = `
+      <input type="radio" name="batata-upgrade"
+        data-adicional="${opt.adicional}"
+        value="${escapeHtml(opt.nome)}"
+        ${isSelected ? "checked" : ""}>
+      ${escapeHtml(opt.nome)}
+      <span class="upgrade-preco">${priceText}</span>`;
+    section.appendChild(label);
+  });
+
+  questionDiv.appendChild(section);
+
+  questionDiv
+    .querySelectorAll('input[name="batata-upgrade"]')
+    .forEach((input) => {
+      input.addEventListener("change", (e) => {
+        comboCustomization.selectedBatata = e.target.value;
+        comboCustomization.batataPriceAdjust =
+          parseFloat(e.target.dataset.adicional) || 0;
+      });
+    });
+
+  comboCustomization.processingUpgrade = "batata";
+
+  const nextButton = document.querySelector("#popupCustom .btn");
+  if (nextButton) {
+    nextButton.textContent = "Próximo: Bebida 🥤";
+    nextButton.onclick = confirmPopupCustom;
+  }
+
+  openPopup("popupCustom");
+}
+
+function renderBebidaUpgrade(upgrades) {
+  const item = comboCustomization.item;
+
+  // Auto-selecionar a primeira opção
+  if (!comboCustomization.selectedBebida) {
+    comboCustomization.selectedBebida = upgrades[0].nome;
+    comboCustomization.bebidaPriceAdjust = upgrades[0].adicional || 0;
+  }
+
+  const title = document.getElementById("popupCustomTitle");
+  title.textContent = `${item.nome} — Escolha a Bebida 🥤`;
+
+  const questionDiv = document.getElementById("popupQuestion");
+  questionDiv.innerHTML = "";
+
+  const section = document.createElement("div");
+  section.innerHTML = "<h4>Bebida:</h4>";
+
+  upgrades.forEach((opt, i) => {
+    const isSelected = comboCustomization.selectedBebida === opt.nome;
+    const priceText =
+      opt.adicional > 0
+        ? `(+R$ ${opt.adicional.toFixed(2)})`
+        : opt.adicional < 0
+          ? `(-R$ ${Math.abs(opt.adicional).toFixed(2)})`
+          : "(Inclusa)";
+
+    const label = document.createElement("label");
+    label.className = "upgrade-option";
+    label.innerHTML = `
+      <input type="radio" name="bebida-upgrade"
+        data-adicional="${opt.adicional}"
+        value="${escapeHtml(opt.nome)}"
+        ${isSelected ? "checked" : ""}>
+      ${escapeHtml(opt.nome)}
+      <span class="upgrade-preco">${priceText}</span>`;
+    section.appendChild(label);
+  });
+
+  questionDiv.appendChild(section);
+
+  questionDiv
+    .querySelectorAll('input[name="bebida-upgrade"]')
+    .forEach((input) => {
+      input.addEventListener("change", (e) => {
+        comboCustomization.selectedBebida = e.target.value;
+        comboCustomization.bebidaPriceAdjust =
+          parseFloat(e.target.dataset.adicional) || 0;
+      });
+    });
+
+  comboCustomization.processingUpgrade = "bebida";
+
+  const nextButton = document.querySelector("#popupCustom .btn");
+  if (nextButton) {
+    nextButton.textContent = "Adicionar ao Carrinho ✅";
+    nextButton.onclick = confirmPopupCustom;
+  }
+
+  openPopup("popupCustom");
+}
+
 function closePopupCustom() {
   comboCustomization.currentBurgerIndex = -1;
+  comboCustomization.processingUpgrade = null;
+  comboCustomization.selectedBatata = null;
+  comboCustomization.selectedBebida = null;
+  comboCustomization.batataPriceAdjust = 0;
+  comboCustomization.bebidaPriceAdjust = 0;
   closePopup("popupCustom", () => closeBackdrop());
   currentItem = null;
 }
@@ -1625,6 +1836,14 @@ function sendOrder() {
             observacoes.push(`Adicionais: ${extraNames.join(", ")}`);
           }
         });
+
+        // Batata e bebida (Combos com batata)
+        if (custom.selectedBatata) {
+          observacoes.push(`Batata: ${custom.selectedBatata}`);
+        }
+        if (custom.selectedBebida) {
+          observacoes.push(`Bebida: ${custom.selectedBebida}`);
+        }
       }
     }
 

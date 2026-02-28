@@ -680,7 +680,17 @@ const MenuUI = {
           btn.style.background = "#666";
           btn.innerHTML = `${size}<span class="price-tag">Indisponível</span>`;
         } else {
-          btn.innerHTML = `${size}<span class="price-tag">${Utils.formatPrice(price)}</span>`;
+          const originalPrice =
+            item.precoOriginal && item.precoOriginal[index] != null
+              ? item.precoOriginal[index]
+              : null;
+          const priceHtml = originalPrice
+            ? `<span class="price-tag price-tag--promo">
+                <span class="preco-antigo">${Utils.formatPrice(originalPrice)}</span>
+                <span class="preco-promocional">${Utils.formatPrice(price)}</span>
+               </span>`
+            : `<span class="price-tag">${Utils.formatPrice(price)}</span>`;
+          btn.innerHTML = `${size}${priceHtml}`;
           btn.addEventListener("click", () =>
             OrderFlow.start(item, category, size, price),
           );

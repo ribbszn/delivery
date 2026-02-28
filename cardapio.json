@@ -46,7 +46,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [36]
     },
     {
       "nome": "3 Smash Simples",
@@ -87,7 +88,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [36]
     },
     {
       "nome": "4 Smash Simples",
@@ -133,7 +135,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [48]
     },
     {
       "nome": "1 Simples + 2 Duplos",
@@ -181,7 +184,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [48]
     },
     {
       "nome": "3 Duplos",
@@ -224,7 +228,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [54]
     },
     {
       "nome": "Combo Plus!",
@@ -272,7 +277,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [90]
     },
     {
       "nome": "3 Duplos + Batata G",
@@ -315,7 +321,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [72]
     }
   ],
   "Clones": [
@@ -359,7 +366,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [36]
     },
     {
       "nome": "Clone (2 Cremosos)",
@@ -403,7 +411,8 @@
         "Tomate",
         "Cebola caramelizada",
         "Molho artesanal"
-      ]
+      ],
+      "precoOriginal": [36]
     },
     {
       "nome": "Clone (2 Calabresos)",
@@ -440,7 +449,13 @@
           "disponivel": true
         }
       ],
-      "simplesIngredients": ["Calabresa", "Queijo", "Cebola", "Molho artesanal"]
+      "simplesIngredients": [
+        "Calabresa",
+        "Queijo",
+        "Cebola",
+        "Molho artesanal"
+      ],
+      "precoOriginal": [36]
     },
     {
       "nome": "Clone (2 Calabresos Duplos)",
@@ -484,7 +499,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [40]
     }
   ],
   "Combos": [
@@ -567,7 +583,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [35]
     },
     {
       "nome": "Combo Smash 2",
@@ -644,7 +661,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [56]
     },
     {
       "nome": "Combo Smash 3",
@@ -713,7 +731,8 @@
           "preco": 3,
           "disponivel": true
         }
-      ]
+      ],
+      "precoOriginal": [78]
     }
   ],
   "Artesanais": [
@@ -947,7 +966,7 @@
       "adicionais": [
         {
           "nome": "Bacon",
-          "preco": 2,
+          "preco": 3,
           "disponivel": true
         },
         {

@@ -259,6 +259,36 @@ header {
   margin-top: 2px;
 }
 
+/* Preço promocional estilo iFood */
+.price-tag--promo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+  gap: 1px;
+}
+
+.preco-antigo {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #717070;
+  text-decoration: line-through;
+  line-height: 1;
+  display: block;
+  text-align: center;
+}
+
+.preco-promocional {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: black;
+  line-height: 1;
+  display: block;
+  text-align: center;
+}
+
 /* ================================
    MODAL
    ================================ */

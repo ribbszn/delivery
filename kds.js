@@ -678,6 +678,26 @@ function renderOrder(orderId, order, isNew = false) {
             🧾 Cliente
           </button>
         </div>
+        ${(() => {
+          const _tipo = order.tipo || order.tipoOrigem || "";
+          const _modo = order.modoConsumo || "";
+          const isDelivery =
+            _tipo === "delivery" ||
+            _modo.includes("ENTREGA") ||
+            (_tipo !== "mesa" &&
+              _tipo !== "totem" &&
+              _modo !== "🍽️ MESA" &&
+              _modo !== "🥡 VIAGEM" &&
+              _modo !== "🍽️ Mesa");
+          return isDelivery
+            ? `
+        <div class="order-actions-row">
+          <button class="btn-order btn-courier btn-small" style="width:100%" onclick="sendToCourier('${orderId}')">
+            🏍️ Enviar ao Entregador
+          </button>
+        </div>`
+            : "";
+        })()}
         <div class="order-actions-row">
           <button class="btn-order btn-add-item btn-small" onclick="openAddItemModal('${orderId}')">
             ➕ Add Item
@@ -1720,11 +1740,25 @@ async function _implAcceptOrder(orderId) {
 async function _implCompleteOrder(orderId) {
   if (!State.database) return;
   try {
-    await State.database.ref(`pedidos/${orderId}`).update({
+    const order = State.orders[orderId];
+
+    // FIX: calcular e salvar tempoPreparacao para o dashboard conseguir
+    // calcular tempo médio de preparo corretamente.
+    const acceptedAt = order?.acceptedAt;
+    const tempoPreparacao = acceptedAt
+      ? Math.round((Date.now() - acceptedAt) / 60000)
+      : null;
+
+    const updateData = {
       status: "completed",
       completedAt: Date.now(),
       completedTime: new Date().toLocaleString("pt-BR"),
-    });
+    };
+    if (tempoPreparacao !== null) {
+      updateData.tempoPreparacao = tempoPreparacao;
+    }
+
+    await State.database.ref(`pedidos/${orderId}`).update(updateData);
     showToast("✅ Pedido concluído", "success");
   } catch (error) {
     console.error("Erro ao finalizar pedido:", error);
@@ -3706,8 +3740,86 @@ window.initKDS = function () {
   console.log("✅ KDS inicializado após autenticação");
 };
 
-// initKDS é chamado exclusivamente pelo firebase-init-auth.js após autenticação confirmada.
-console.log("🔐 KDS aguardando autenticação...");
+// ================================================================
+// SEND TO COURIER — WhatsApp Logística
+// ================================================================
+
+// Referência global da aba do WhatsApp Web (reutilizada se já estiver aberta)
+let _waCourierTab = null;
+const COURIER_NUMBER = "558183048527";
+
+window.sendToCourier = function (orderId) {
+  const order = State.orders[orderId];
+  if (!order) {
+    showToast("Pedido não encontrado", "error");
+    return;
+  }
+
+  const cliente = order.cliente || order.nomeCliente || order.nome || "Cliente";
+  const num = `#${orderId.slice(-6).toUpperCase()}`;
+  const pagamento = formatPayment(order.pagamento) || "—";
+  const total = formatPrice(order.total || 0);
+
+  // Endereço completo
+  let endereco = order.endereco || "";
+  if (order.bairro) endereco += (endereco ? ", " : "") + order.bairro;
+  if (!endereco) endereco = "Não informado";
+
+  // Linha de troco (destaque especial)
+  let trocoLinha = "";
+  if (order.troco) {
+    trocoLinha = `\n⚠️ *TROCO:* ${order.troco}`;
+  }
+
+  // Taxa de entrega
+  let taxaLinha = "";
+  if (order.taxaEntrega) {
+    taxaLinha = `\n🛵 *Taxa:* ${formatPrice(order.taxaEntrega)}`;
+  }
+
+  // Resumo dos itens
+  const itensResumo = (order.itens || [])
+    .map((item) => {
+      const qty = item.quantidade || item.qtd || 1;
+      const nome = item.nome || "Item";
+      return `  • ${qty}x ${nome}`;
+    })
+    .join("\n");
+
+  const mensagem = `🏍️ *NOVA ENTREGA — RIBBS ZN*
+━━━━━━━━━━━━━━━━━━
+🔖 *Pedido:* ${num}
+👤 *Cliente:* ${cliente}
+━━━━━━━━━━━━━━━━━━
+📍 *Endereço:* ${endereco}
+━━━━━━━━━━━━━━━━━━
+🛒 *Itens:*
+${itensResumo}
+━━━━━━━━━━━━━━━━━━
+💳 *Pagamento:* ${pagamento}${taxaLinha}
+💰 *Total:* ${total}${trocoLinha}
+━━━━━━━━━━━━━━━━━━
+_Bora! 🚀_`;
+
+  const url = `https://wa.me/${COURIER_NUMBER}?text=${encodeURIComponent(mensagem)}`;
+
+  // Reutiliza a aba do WhatsApp Web se já estiver aberta e não foi fechada
+  try {
+    if (_waCourierTab && !_waCourierTab.closed) {
+      _waCourierTab.location.href = url;
+      _waCourierTab.focus();
+    } else {
+      _waCourierTab = window.open(url, "whatsapp_courier");
+    }
+  } catch (e) {
+    // fallback: abre nova aba caso haja restrição de cross-origin
+    _waCourierTab = window.open(url, "whatsapp_courier");
+  }
+
+  showToast("📲 Enviando para o entregador...", "success");
+};
+
+// ================================
 
 // ================================================================
 // CRIAR PEDIDO — NEW ORDER FROM KDS

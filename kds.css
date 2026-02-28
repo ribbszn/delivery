@@ -528,6 +528,29 @@ button {
   color: white;
 }
 
+.btn-courier {
+  background: #25d366 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3px;
+  border: none;
+  transition:
+    background 0.18s,
+    box-shadow 0.18s,
+    transform 0.12s;
+}
+
+.btn-courier:hover {
+  background: #1aab52 !important;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.btn-courier:active {
+  transform: translateY(0);
+  box-shadow: none !important;
+}
+
 .btn-print-customer:hover {
   background: #0097a7;
   transform: translateY(-2px);
